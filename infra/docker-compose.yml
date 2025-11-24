@@ -1,0 +1,12 @@
+services:
+  db:
+    image: postgres:16
+    container_name: rakuten_amazon_db
+    environment:
+      POSTGRES_USER: rakuten
+      POSTGRES_PASSWORD: rakutenpass
+      POSTGRES_DB: rakuten_amazon
+    ports:
+      - "5432:5432"      # ← ホスト5432をコンテナに割り当て
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
