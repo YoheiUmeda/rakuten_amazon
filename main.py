@@ -1,6 +1,19 @@
+# main.py
+from __future__ import annotations
+
+import logging
+import os
+import threading
+import time
+from datetime import datetime
+
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
-import threading
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from prefilter import prefilter_for_rakuten
 from keepa_client import get_asins_from_finder
 from amazon_fee import get_amazon_fees_estimate
@@ -8,26 +21,27 @@ from amazon_price import get_amazon_prices
 from rakuten_client import get_rakuten_info
 from price_calculation import calculate_price_difference
 from excel_exporter import export_asin_dict_to_excel
-from dotenv import load_dotenv
-import os
-import logging
-import time
-from datetime import datetime
 from app.schemas import PriceResult
 from app.repository import save_price_results
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from app.api import prices
 
 # .env 読み込み（FastAPI側/バッチ側どちらで使ってもいいように先頭で呼ぶ）
 load_dotenv(override=True)
 
+logger = logging.getLogger(__name__)
+
+# =========================
+# FastAPI アプリ設定
+# =========================
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,19 +56,19 @@ MIN_PROFIT_YEN = int(os.getenv("MIN_PROFIT_YEN", "700"))
 MIN_ROI_PERCENT = float(os.getenv("MIN_ROI_PERCENT", "15"))
 
 
-def update_status(status_label: tk.Label, root: tk.Tk, text: str):
+def update_status(status_label: tk.Label, root: tk.Tk, text: str) -> None:
     """ステータスラベル更新を1箇所に集約"""
     status_label["text"] = text
     root.update_idletasks()
 
 
-def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
+def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button) -> None:
     """
     Keepa Product Finder → SP-API → 楽天 → 価格差計算 → Excel & DB 保存
     を1スレッドでまとめて実行するワーカー。
     """
     start_time = time.time()
-    logger = logging.getLogger(__name__)
+    log = logging.getLogger(__name__)
 
     try:
         # 1️⃣ ASIN取得
@@ -64,13 +78,13 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
 
         if not asins:
             msg = "ASIN取得0件（もしくは失敗）"
-            logger.warning(msg)
+            log.warning(msg)
             update_status(status_label, root, msg)
             return
 
         elapsed = time.time() - start_time
         msg = f"[1/4] ASIN取得完了: {n_asins}件 (経過 {elapsed:.1f}秒)"
-        logger.info(msg)
+        log.info(msg)
         update_status(status_label, root, msg)
 
         # 2️⃣ Amazon価格＋手数料
@@ -85,7 +99,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
             f"[2/4] Amazon価格＋手数料取得完了 "
             f"(ASIN: {len(amazon_offer_data_with_fee)}件, 経過 {elapsed:.1f}秒)"
         )
-        logger.info(msg)
+        log.info(msg)
         update_status(status_label, root, msg)
 
         # 3️⃣ 楽天対象のプレフィルタ
@@ -97,12 +111,12 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
         )
         n_filtered = len(filtered_for_rakuten)
         elapsed = time.time() - start_time
+
         msg = (
             f"[3/4] 楽天検索対象: {n_filtered}件 / "
             f"元ASIN: {len(amazon_offer_data_with_fee)}件 (経過 {elapsed:.1f}秒)"
         )
-
-        logger.info(
+        log.info(
             "[3/4] 楽天検索対象: %d件 / 元ASIN: %d件 (経過 %.1f秒)",
             n_filtered,
             len(amazon_offer_data_with_fee),
@@ -112,7 +126,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
 
         if not filtered_for_rakuten:
             msg = "楽天検索対象が0件のため終了"
-            logger.info(msg)
+            log.info(msg)
             update_status(status_label, root, msg)
             return
 
@@ -122,7 +136,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
 
         elapsed = time.time() - start_time
         msg = f"[3.5/4] 楽天価格情報取得完了 (経過 {elapsed:.1f}秒)"
-        logger.info(msg)
+        log.info(msg)
         update_status(status_label, root, msg)
 
         # 4️⃣ 価格差計算
@@ -133,13 +147,14 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
         # デバッグ用に先頭1件だけログ出力
         if target_result:
             sample_asin, sample_data = next(iter(target_result.items()))
-            logger.info(f"[DEBUG] SAMPLE asin={sample_asin}, data={sample_data}")
+            log.info("[DEBUG] SAMPLE asin=%s, data=%s", sample_asin, sample_data)
 
         # 4-1️⃣ DB保存用 PriceResult リスト組み立て
         price_results: list[PriceResult] = []
 
         for asin, data in target_result.items():
             title = data.get("title") or ""
+
             # Amazon URL は repository 側で ASIN から補完するのでここでは空でもOK
             amazon_url = data.get("amazon_url") or ""
             rakuten_url = data.get("rakuten_url") or data.get("rakuten_url_1")
@@ -151,7 +166,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
             # --- 利益・ROI（1注文あたり） ---
             profit_total = data.get("profit_total")
             if profit_total is None:
-                # 古いキー名や後方互換のためのフォールバック
+                # 後方互換用：price_calculation が price_diff* を持っているケース
                 profit_total = data.get("price_diff_after_point") or data.get("price_diff")
 
             roi_ratio = data.get("roi_total")
@@ -207,7 +222,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
         excel_path = export_asin_dict_to_excel(target_result)
         candidate_count = len(target_result)
 
-        logger.info(
+        log.info(
             "[SUMMARY] 元ASIN: %d件 / 楽天検索対象: %d件 / 価格差候補: %d件",
             len(amazon_offer_data),
             len(filtered_for_rakuten),
@@ -221,7 +236,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
             f"[4/4] 価格差候補: {n_final}件, Excel出力完了 ({excel_display}) "
             f"/ 総処理時間: {elapsed:.1f}秒"
         )
-        logger.info(msg)
+        log.info(msg)
         update_status(status_label, root, msg)
 
         log_name = os.path.basename(LOG_PATH) if LOG_PATH else "（logsフォルダを参照）"
@@ -235,7 +250,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button):
         )
 
     except Exception as e:
-        logger.exception(f"処理中にエラー発生: {e}")
+        log.exception("処理中にエラー発生: %s", e)
         update_status(status_label, root, f"エラー: {e}")
         messagebox.showerror("エラー", str(e))
     finally:
@@ -247,7 +262,7 @@ def run_search(
     root: tk.Tk,
     status_label: tk.Label,
     btn_run: tk.Button,
-):
+) -> None:
     """
     ボタン押下時に呼ばれる関数。
     ここでは入力取得＋スレッド起動だけやる。
@@ -279,6 +294,7 @@ if __name__ == "__main__":
     ts = time.strftime("%Y%m%d_%H%M%S")
     log_path = os.path.join(log_dir, f"run_{ts}.log")
 
+    # ※ root ロガーをここでだけ初期化（FastAPI/uvicorn利用時は uvicorn 側に任せる）
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -291,7 +307,7 @@ if __name__ == "__main__":
     LOG_PATH = log_path
 
     logger = logging.getLogger(__name__)
-    logger.info(f"ログ開始: {log_path}")
+    logger.info("ログ開始: %s", log_path)
 
     root = tk.Tk()
     root.title("Product Finder価格差調査")

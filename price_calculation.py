@@ -1,7 +1,6 @@
+# price_calculation.py
 from __future__ import annotations
-
-from typing import Dict, Tuple, Any
-
+from typing import Any, Dict, Tuple
 from utils.utils import extract_quantity
 
 
@@ -11,13 +10,14 @@ def _choose_best_rakuten_offer(
 ) -> Tuple[float | None, float | None, int | None]:
     """
     楽天候補のうち「1個あたりの実質仕入れ値」が一番安いものを 1 件だけ返す。
-    返り値:
+
+    戻り値:
         (effective_cost_total, cost_per_item, quantity)
-    なければ (None, None, None)
+        → 候補なしの場合は (None, None, None)
     """
-    best_total = None
-    best_per_item = None
-    best_qty = None
+    best_total: float | None = None
+    best_per_item: float | None = None
+    best_qty: int | None = None
 
     for i in range(1, 4):
         cost = info.get(f"rakuten_cost_{i}")
@@ -55,9 +55,9 @@ def calculate_price_difference(
 ) -> Dict[str, Dict[str, Any]]:
     """
     Keepa + SP-API + 楽天API で集約した dict に対して、
-    ・Amazon受取額（手数料控除後）
-    ・楽天仕入れ原価（ポイント控除後）
-    ・利益・ROI
+      ・Amazon受取額（手数料控除後）
+      ・楽天仕入れ原価（ポイント控除後）
+      ・利益・ROI
     を付加して返す。
     """
     for asin, info in asins.items():
@@ -84,7 +84,9 @@ def calculate_price_difference(
         amazon_received_per_item = (
             amazon_net_total / amazon_quantity if amazon_quantity > 0 else None
         )
-        amazon_price_per_item = price / amazon_quantity if amazon_quantity > 0 else None
+        amazon_price_per_item = (
+            price / amazon_quantity if amazon_quantity > 0 else None
+        )
 
         # -------- 楽天 側 --------
         rak_total, rak_per_item, rak_qty = _choose_best_rakuten_offer(
@@ -111,6 +113,7 @@ def calculate_price_difference(
         # -------- 利益・ROI 計算 --------
         # 1SKUあたりの総利益
         profit_total = amazon_net_total - rak_total
+
         # 1個あたりに割った利益（デバッグ用途）
         profit_per_item = (
             profit_total / amazon_quantity if amazon_quantity > 0 else profit_total

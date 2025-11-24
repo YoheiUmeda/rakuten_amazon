@@ -1,20 +1,23 @@
 # scripts/debug_db.py
+from __future__ import annotations
 
-import os
 import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-# ▼ プロジェクトルートを sys.path に追加
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))          # .../rakuten_amazon/scripts
-PROJECT_ROOT = os.path.dirname(BASE_DIR)                       # .../rakuten_amazon
+# プロジェクトルート: .../rakuten_amazon
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-# ▼ .env 読み込み（DATABASE_URL など）
-env_path = os.path.join(PROJECT_ROOT, ".env")
-if os.path.exists(env_path):
+# .env 読み込み（DATABASE_URL など）
+env_path = BASE_DIR / ".env"
+if env_path.exists():
     load_dotenv(env_path, override=True)
+else:
+    # カレントに .env がある場合などのフォールバック
+    load_dotenv(override=True)
 
 from app.db import SessionLocal
 from app.models import PriceSnapshot

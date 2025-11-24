@@ -5,9 +5,9 @@ from app.api import prices
 app = FastAPI()
 
 # ルーター登録
-app.include_router(prices.router)
+app.include_router(prices.router, prefix="/api")
 
-# 動作確認用
+
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
     return {"status": "ok"}

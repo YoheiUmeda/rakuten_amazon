@@ -9,13 +9,19 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-load_dotenv()
+# .env 読み込み
+load_dotenv(override=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL が設定されていません")
 
-engine = create_engine(DATABASE_URL, echo=False, future=True)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True,
+)
+
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
@@ -23,9 +29,10 @@ SessionLocal = sessionmaker(
     future=True,
 )
 
+
 @contextmanager
 def get_session() -> Iterator[Session]:
-    """スクリプト等で使う用（withパターン）"""
+    """スクリプト等で使う用（with パターン）"""
     session: Session = SessionLocal()
     try:
         yield session
@@ -36,8 +43,12 @@ def get_session() -> Iterator[Session]:
     finally:
         session.close()
 
-# ★ FastAPI用（Depends で使う用）
+
 def get_db() -> Generator[Session, None, None]:
+    """
+    FastAPI の Depends 用。
+    例: def endpoint(db: Session = Depends(get_db)):
+    """
     db: Session = SessionLocal()
     try:
         yield db

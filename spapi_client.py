@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from sp_api.api import Products, ProductFees, Catalog
 from sp_api.base import Marketplaces
 import logging
+from datetime import datetime, timedelta
 
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
@@ -96,14 +97,18 @@ def get_batch_pricing_info(asins, credentials):
                             'amazon_price_per_item': '',
                         }
 
-                        print({
-                            'ASIN': asin,
-                            'price': price,
-                            'shipping': shipping,
-                            'is_fba': is_fba,
-                            'buybox': buybox,
-                            'seller': seller
-                        })
+                        # ★ 元の print を logger.debug に変更
+                        logger.debug(
+                            "[Pricing] raw offer: %s",
+                            {
+                                'ASIN': asin,
+                                'price': price,
+                                'shipping': shipping,
+                                'is_fba': is_fba,
+                                'buybox': buybox,
+                                'seller': seller
+                            }
+                        )
 
                 logger.info(f"[Pricing] バッチ {batch_index} 成功 (attempt={attempt+1})")
                 success = True
@@ -149,11 +154,11 @@ def enrich_results_with_jan(results):
 #     batch_size = int(os.getenv('REQUEST_UPPER_NUM', '10'))
 #     sleep_time = float(os.getenv('FBA_SLEEP_TIME', '1.5'))
 #     max_retries = int(os.getenv('MAX_RETRIES', '3'))
-
+#
 #     catalog = Catalog(marketplace=Marketplaces.JP, credentials=credentials)
 #     start = time.time()
 #     asins = list(results.keys())
-
+#
 #     for bi, batch in enumerate(chunked(asins, batch_size)):
 #         success = False
 #         for attempt in range(max_retries):
@@ -170,26 +175,29 @@ def enrich_results_with_jan(results):
 #                         results[asin]["jan"] = jan
 #                 success = True
 #                 break  # 成功したら retry 抜ける
-
+#
 #             except Exception as e:
 #                 # ✅ Exponential Backoff + Full Jitter
 #                 base = min(60, 2 ** attempt)
 #                 jitter = random.uniform(0, base)
 #                 wait = base + jitter
-
-#                 print(f"[❌ JAN取得エラー] batch_index={bi} attempt={attempt + 1}/{max_retries} → {e}")
+#
+#                 logger.error(
+#                     "[JAN] 取得エラー batch_index=%d attempt=%d/%d → %s",
+#                     bi, attempt + 1, max_retries, e
+#                 )
 #                 if attempt < max_retries - 1:
-#                     print(f"🔁 バックオフ：{wait:.1f}秒待機（base={base}, jitterあり）")
+#                     logger.info("🔁 バックオフ：%.1f秒待機（base=%.1f, jitterあり）", wait, base)
 #                     time.sleep(wait)
 #                 else:
-#                     print(f"🚫 最大リトライ超過 → スキップ batch={batch}")
+#                     logger.error("[JAN] 最大リトライ超過 → スキップ batch=%s", batch)
 #                     for asin in batch:
 #                         results[asin]["jan"] = None
-
+#
 #         eta = estimate_eta(start, bi, len(asins) // batch_size)
-#         print(f"[JAN] {bi+1}/{(len(asins) - 1) // batch_size + 1}バッチ完了 / ETA: {eta}")
+#         logger.info("[JAN] %d/%dバッチ完了 / ETA: %s", bi + 1, (len(asins) - 1) // batch_size + 1, eta)
 #         time.sleep(sleep_time)
-
+#
 #     return results
 
 #region FBAデータ取得
@@ -231,7 +239,8 @@ def get_fba_fee(asin_price_map):
                     "identifier": asin,
                 })
             except Exception as e:
-                print(f"[❌ データエラー] ASIN={asin}: {e}")
+                # ★ 元の print を logger.error に変更
+                logger.error("[FBA] データエラー ASIN=%s: %s", asin, e)
                 results[asin] = {"fee": None, "fee_raw": [], "error": str(e)}
 
         pf = ProductFees(marketplace=Marketplaces.JP, credentials=credentials)
@@ -253,7 +262,8 @@ def get_fba_fee(asin_price_map):
                         "fee_raw": fee_details
                     }
 
-                    print(f"[✅ FBA手数料取得] ASIN={asin} 手数料={total_fee:.2f}円")
+                    # ★ 元の print を logger.info に変更
+                    logger.info("[✅ FBA手数料取得] ASIN=%s 手数料=%.2f円", asin, total_fee)
 
                 logger.info(f"[FBA] batch={batch_index+1}/{total_batches} 手数料取得成功")
                 break
@@ -274,7 +284,8 @@ def get_fba_fee(asin_price_map):
                     break
 
         else:
-            print(f"[🚫 最大リトライ超過] batch_index={batch_index} → スキップ")
+            # ★ 元の print を logger.error に変更
+            logger.error("[FBA] 最大リトライ超過 batch_index=%d → スキップ", batch_index)
             for asin, _ in batch:
                 results[asin] = {
                     "fee": None,
@@ -289,9 +300,6 @@ def get_fba_fee(asin_price_map):
     logger.info(f"[FBA] QuotaExceeded 発生回数: {quota_errors} 回 / バッチ数: {total_batches}")
     return results
 #end region
-
-from datetime import datetime, timedelta
-import time
 
 def estimate_eta(start_time: float, index: int, total: int) -> str:
     elapsed = time.time() - start_time
@@ -317,26 +325,27 @@ def load_credentials():
     )
 
 # spapi_client.py の一番下あたり
-
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv(override=True)
 
+    # ここは「単体テスト用」なので print でもいいけど、
+    # ログに寄せるなら logger を使う
     creds = load_credentials()
-    print("REFRESH_TOKEN set:", bool(creds["refresh_token"]))
-    print("LWA_APP_ID set:", bool(creds["lwa_app_id"]))
-    print("LWA_CLIENT_SECRET set:", bool(creds["lwa_client_secret"]))
-    print("AWS_ACCESS_KEY set:", bool(creds["aws_access_key"]))
-    print("AWS_SECRET_KEY set:", bool(creds["aws_secret_key"]))
-    print("ROLE_ARN set:", bool(creds["role_arn"]))
+    logger.info("REFRESH_TOKEN set: %s", bool(creds["refresh_token"]))
+    logger.info("LWA_APP_ID set: %s", bool(creds["lwa_app_id"]))
+    logger.info("LWA_CLIENT_SECRET set: %s", bool(creds["lwa_client_secret"]))
+    logger.info("AWS_ACCESS_KEY set: %s", bool(creds["aws_access_key"]))
+    logger.info("AWS_SECRET_KEY set: %s", bool(creds["aws_secret_key"]))
+    logger.info("ROLE_ARN set: %s", bool(creds["role_arn"]))
 
     # ついでに 1 ASIN だけ叩いてみるテスト
     test_asin = ["B0056DUNLW"]  # 適当なASINに変えてOK
     from sp_api.base import SellingApiException
     try:
         res = get_best_amazon_price(test_asin)
-        print("API call OK. result:", res)
+        logger.info("API call OK. result: %s", res)
     except SellingApiException as e:
-        print("SellingApiException:", e)
+        logger.error("SellingApiException: %s", e)
     except Exception as e:
-        print("Other Exception:", e)
+        logger.error("Other Exception: %s", e)

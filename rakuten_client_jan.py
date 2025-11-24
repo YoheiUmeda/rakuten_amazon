@@ -1,14 +1,17 @@
+# rakuten_client_jan.py
 import os
 import re
 import time
 import requests
+import logging
 from dotenv import load_dotenv
 
 # .envからAPIキー読込など
 load_dotenv(override=True)
+logger = logging.getLogger(__name__)
+
 
 def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
-
     app_id = os.getenv('RAKUTEN_API_ID')
     sleep_time = float(os.getenv('RAKUTEN_SLEEP_TIME', 1))
 
@@ -17,15 +20,15 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
 
     for asin, info in asins.items():
         if info is None:
-            print(f"[SKIP] ASIN={asin} → info=None")
+            logger.info("[SKIP] ASIN=%s → info=None", asin)
             continue
 
         jan = (info.get('jan') or '').strip()
         if not jan:
-            print(f"[SKIP] ASIN={asin} → JANなし")
+            logger.info("[SKIP] ASIN=%s → JANなし", asin)
             continue
 
-        print(f"\n[検索開始] ASIN={asin} JAN={jan}")
+        logger.info("[検索開始] ASIN=%s JAN=%s", asin, jan)
         valid_items = []
 
         # ① IchibaItem/Search でJAN検索
@@ -33,7 +36,7 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
         time.sleep(sleep_time)
 
         if not items:
-            print(f"[NO_HIT] IchibaItem検索→ JAN: {jan}")
+            logger.info("[NO_HIT] IchibaItem検索→ JAN: %s", jan)
             continue
 
         for item in items:
@@ -69,7 +72,7 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
                 for prod in products:
                     prod_data = prod.get('Product', {})
                     rakuten_jan = prod_data.get('jan')
-                    print(f"[JAN照合] kw='{kw_norm}' → 楽天JAN: {rakuten_jan}")
+                    logger.debug("[JAN照合] kw='%s' → 楽天JAN: %s", kw_norm, rakuten_jan)
 
                     if rakuten_jan and rakuten_jan == jan:
                         found_matching_jan = True
@@ -80,7 +83,7 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
                     break
 
             if not found_matching_jan:
-                print(f"[JAN不一致] 楽天商品からJAN一致せず → skip")
+                logger.info("[JAN不一致] 楽天商品からJAN一致せず → skip (ASIN=%s, JAN=%s)", asin, jan)
                 continue
 
             point_rate = float(item.get('pointRate', 0)) / 100
@@ -100,7 +103,7 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
             })
 
         if not valid_items:
-            print(f"[NO_MATCH] JAN一致商品なし: ASIN={asin}, JAN={jan}")
+            logger.info("[NO_MATCH] JAN一致商品なし: ASIN=%s, JAN=%s", asin, jan)
             continue
 
         # ③ 上位3件で記録
@@ -120,6 +123,7 @@ def get_rakuten_info_strict_by_jan(asins: dict) -> dict:
 
     return asins
 
+
 def perform_rakuten_api_search(keyword: str, app_id: str):
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
     params = {
@@ -133,9 +137,12 @@ def perform_rakuten_api_search(keyword: str, app_id: str):
         response = requests.get(url, params=params)
         if response.status_code == 200:
             return [i['Item'] for i in response.json().get('Items', [])]
+        else:
+            logger.error("[APIエラー] IchibaItemSearch HTTP %s keyword=%s", response.status_code, keyword)
     except Exception as e:
-        print(f"[APIエラー] IchibaItemSearch: {e}")
+        logger.error("[APIエラー] IchibaItemSearch: %s", e)
     return []
+
 
 def search_rakuten_product_api(keyword: str):
     app_id = os.getenv('RAKUTEN_API_ID')
@@ -149,14 +156,17 @@ def search_rakuten_product_api(keyword: str):
         res = requests.get(url, params=params)
         if res.status_code == 200:
             return res.json().get('Products', [])
+        else:
+            logger.error("[APIエラー] ProductSearch HTTP %s keyword=%s", res.status_code, keyword)
     except Exception as e:
-        print(f"[APIエラー] ProductSearch: {e}")
+        logger.error("[APIエラー] ProductSearch: %s", e)
     return []
 
 
 def extract_product_code_candidates(title):
     # 英字+数字や型番っぽいパターンを抽出
     return list(set(re.findall(r'\b[A-Z0-9\-]{4,}\b', title)))
+
 
 def is_used_product(title: str, caption: str = "") -> bool:
     used_keywords = ["中古", "used", "リファービッシュ", "再生品", "訳あり", "アウトレット"]
@@ -165,9 +175,11 @@ def is_used_product(title: str, caption: str = "") -> bool:
 
 
 EXCLUDE_KEYWORDS = [
-    "保証", "延長", "修理", "保護", "フィルム", 
+    "保証", "延長", "修理", "保護", "フィルム",
     "チケット", "サービス", "まとめ買い", "セット内容", "オプション"
 ]
+
+
 def extract_quantity_from_rakuten_title(title: str) -> int:
     import re
     from datetime import datetime
@@ -182,15 +194,15 @@ def extract_quantity_from_rakuten_title(title: str) -> int:
     ]
     for w in box_like_words:
         if re.search(w, title_lower):
-            print(f"[数量特例] '{w}' 検出 → 数量=1")
+            logger.debug("[数量特例] '%s' 検出 → 数量=1", w)
             return 1
 
     # 2. バリエーション（選択式など）は数量1
     if re.search(r'\d+(\s*/\s*\d+){1,2}\s*(本|個|枚|袋|組|色)', title_lower):
-        print(f"[数量特例] 'n/n構成' バリエーション検出 → 数量=1")
+        logger.debug("[数量特例] 'n/n構成' バリエーション検出 → 数量=1")
         return 1
     if "選べる" in title_lower or re.search(r'単品\s*/\s*\d+', title_lower):
-        print(f"[数量特例] '選べる/単品' バリエーション検出 → 数量=1")
+        logger.debug("[数量特例] '選べる/単品' バリエーション検出 → 数量=1")
         return 1
 
     # 3. 容量・重量などは構成情報なので除外処理
@@ -217,7 +229,7 @@ def extract_quantity_from_rakuten_title(title: str) -> int:
     title_lower_clean = title_cleaned.lower()
     for kw in media_combo_keywords:
         if kw in title_lower_clean:
-            print(f"[数量特例] メディア系 '{kw}' → 数量=1")
+            logger.debug("[数量特例] メディア系 '%s' → 数量=1", kw)
             return 1
 
     # 5. 通常の数量パターンチェック
@@ -239,22 +251,22 @@ def extract_quantity_from_rakuten_title(title: str) -> int:
 
                 # 年号の誤認識防止（上で除去済みだけど保険）
                 if str(quantity) in known_years:
-                    print(f"[数量無効] '{quantity}' は年号と一致 → 除外")
+                    logger.debug("[数量無効] '%s' は年号と一致 → 除外", quantity)
                     continue
 
                 if quantity > max_valid_quantity:
-                    print(f"[数量無効] '{quantity}' は異常値 → 除外")
+                    logger.debug("[数量無効] '%s' は異常値 → 除外", quantity)
                     continue
 
                 end_index = m.end()
-                suffix = title_cleaned[end_index:end_index+4]
+                suffix = title_cleaned[end_index:end_index + 4]
                 if any(x in suffix for x in invalid_suffixes):
-                    print(f"[数量無効] '{m.group()}' の後に '{suffix}' → 除外")
+                    logger.debug("[数量無効] '%s' の後に '%s' → 除外", m.group(), suffix)
                     continue
 
                 return quantity
             except Exception as e:
-                print(f"[数量抽出エラー] {e}")
+                logger.exception("[数量抽出エラー] %s", e)
                 continue
 
     return 1

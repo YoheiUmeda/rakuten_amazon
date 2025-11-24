@@ -10,6 +10,8 @@ from typing import List, Tuple
 
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
+
 # ==============================
 #  プロジェクトルートを sys.path に追加
 # ==============================
@@ -63,6 +65,7 @@ def load_query_files(base_dir: Path) -> List[Tuple[Path, str]]:
         if not text:
             # 空ファイルはスキップ
             continue
+
         # 全行コメントだけのファイルはスキップ
         if all(line.strip().startswith("#") for line in text.splitlines()):
             continue
@@ -90,8 +93,8 @@ def load_single_env_query() -> str | None:
 
 def load_legacy_query_file(base_dir: Path) -> str | None:
     """
-    最後のフォールバック: data/product_finder_query_url.txt を 1 件だけ読む。
-    旧仕様との互換用。
+    最後のフォールバック:
+    data/product_finder_query_url.txt を 1 件だけ読む（旧仕様互換）。
     """
     legacy = base_dir / "data" / "product_finder_query_url.txt"
     if not legacy.exists():
@@ -120,7 +123,6 @@ if __name__ == "__main__":
     )
 
     load_dotenv(override=True)
-    logger = logging.getLogger(__name__)
     logger.info(f"[CLI] log file: {log_path}")
 
     # ① KEEPA_QUERY_DIR 指定があれば「フォルダモード」で複数実行
@@ -129,14 +131,19 @@ if __name__ == "__main__":
         logger.info(
             f"[CLI] クエリフォルダモード: {len(query_files)} ファイルを処理します。"
         )
+
         for path, query in query_files:
             logger.info(f"[CLI] === 実行開始: {path.name} ===")
             logger.info(f"[CLI] query preview: {query[:150]}...")
             run_batch_once(query, logger=logger)
             logger.info(f"[CLI] === 実行終了: {path.name} ===")
+
     except RuntimeError as e:
         # フォルダが見つからない / ファイルなし の場合だけフォールバックに進む
-        logger.warning(f"[CLI] KEEPA_QUERY_DIR モードが使えないためフォールバック: {e}")
+        logger.warning(
+            "[CLI] KEEPA_QUERY_DIR モードが使えないためフォールバック: %s",
+            e,
+        )
 
         # ② KEEPA_FINDER_QUERY 環境変数（単発モード）
         env_query = load_single_env_query()

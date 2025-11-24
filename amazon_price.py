@@ -1,30 +1,40 @@
 # amazon_price.py
-from spapi_client import get_best_amazon_price, enrich_results_with_jan
+from __future__ import annotations
+
+from typing import Dict, Any, List
+import logging
+
+from spapi_client import get_best_amazon_price
 from keepa_client import enrich_results_with_keepa_jan
 
-def get_amazon_prices(asins):
-    """
-    優先順にAmazonの価格情報を取得し返す
-    """
-    result = {
-        "cart_price": None,
-        "lowest_marketplace_price": None,
-        "keepa_buybox": None,
-        "keepa_new_lowest": None,
-        "is_fba": None
-    }
+logger = logging.getLogger(__name__)
 
-    # 1. SP-APIでカート、または価格取得
+
+def get_amazon_prices(asins: List[str]) -> Dict[str, Dict[str, Any]]:
+    """
+    ASINリストを受け取り、SP-API と Keepa を使って
+    Amazonの価格情報＋JAN等の詳細を付与して返す。
+
+    戻り値:
+        { ASIN: { price, shipping, is_fba, jan, title, ... }, ... }
+    """
+    if not asins:
+        logger.info("[AmazonPrice] 入力ASINが0件のためスキップ")
+        return {}
+
+    logger.info(f"[AmazonPrice] SP-API 価格取得開始: {len(asins)} ASIN")
+
+    # 1️⃣ SP-APIで最良オファーを取得
     amazon_data = get_best_amazon_price(asins)
+    logger.info(f"[AmazonPrice] SP-API 価格取得完了: {len(amazon_data)} ASIN")
 
-    # 2. JANコードを付与
-    amazon_data_with_jan = enrich_results_with_keepa_jan(amazon_data)
+    if not amazon_data:
+        logger.warning("[AmazonPrice] SP-API結果が空 → 後続処理スキップ")
+        return {}
 
-    # # 3. KeepaでBuyBox価格を取得
-    # keepa_data = get_keepa_summary(asins)
-    # if keepa_data:
-    #     result["keepa_buybox"] = keepa_data.get("buybox_new")
-    #     result["keepa_new_lowest"] = keepa_data.get("lowest_new")
-    #     result["is_fba"] = keepa_data.get("is_fba") if result["is_fba"] is None else result["is_fba"]
+    # 2️⃣ KeepaでJAN・販売数など詳細情報を enrich
+    logger.info("[AmazonPrice] Keepa 詳細情報付与開始 (JAN / 販売数 / 数量 等)")
+    enriched = enrich_results_with_keepa_jan(amazon_data)
+    logger.info(f"[AmazonPrice] Keepa 詳細情報付与完了: {len(enriched)} ASIN")
 
-    return amazon_data_with_jan
+    return enriched
