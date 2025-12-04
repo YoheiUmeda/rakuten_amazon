@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -19,14 +18,18 @@ def search_prices(
     cond: PriceSearchCondition,
     db: Session = Depends(get_db),
 ) -> PriceResponse:
-    # 最新実行分だけを対象にする
-    latest_checked_at_subq = db.query(
-        func.max(PriceSnapshot.checked_at)
-    ).scalar_subquery()
+    """
+    価格一覧検索 API
 
-    q = db.query(PriceSnapshot).filter(
-        PriceSnapshot.checked_at == latest_checked_at_subq
-    )
+    - デフォルトでは「全スナップショット」を対象にする
+    - keyword / min_profit / min_roi / only_pass_filter が指定されたときだけ絞り込む
+    - limit で最大件数を制御（schemas側のデフォルトを 1000 にしておく）
+    """
+
+    # ★ ここがポイント：
+    #   以前は「最新実行分だけ」を対象にしていたが、
+    #   いまは DB 全体（全スナップショット）を対象にする。
+    q = db.query(PriceSnapshot)
 
     # キーワード（タイトル or ASIN 部分一致）
     if cond.keyword:
@@ -47,9 +50,16 @@ def search_prices(
     if cond.min_roi is not None:
         q = q.filter(PriceSnapshot.roi_percent >= cond.min_roi)
 
-    # デフォルトは「利益の大きい順」
-    q = q.order_by(PriceSnapshot.profit_per_item.desc())
+    # 件数（limit をかける前の総件数）
+    total = q.count()
 
+    # 並び順：デフォルトは「利益の大きい順、同じなら新しい順」
+    q = q.order_by(
+        PriceSnapshot.profit_per_item.desc().nullslast(),
+        PriceSnapshot.checked_at.desc(),
+    )
+
+    # limit が指定されていれば適用（schemas のデフォルトを 1000 にしておくと安心）
     if cond.limit:
         q = q.limit(cond.limit)
 
@@ -58,7 +68,7 @@ def search_prices(
     items: List[PriceItem] = [
         PriceItem(
             asin=r.asin,
-            title=r.title or "",
+            title=(r.title or ""),
             amazon_price=r.amazon_price,
             rakuten_price=r.rakuten_price,
             profit_per_item=r.profit_per_item,
@@ -70,4 +80,5 @@ def search_prices(
         for r in rows
     ]
 
-    return PriceResponse(items=items, total=len(items))
+    # total は「絞り込み後・limit前」の件数
+    return PriceResponse(items=items, total=total)

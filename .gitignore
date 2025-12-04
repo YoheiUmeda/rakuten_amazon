@@ -29,3 +29,9 @@ data/queries/
 #html
 html/
 *.html
+
+# Postgres data directory
+infra/postgres-data/
+
+# Rakuten cache file
+rakuten_cache.json

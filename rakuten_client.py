@@ -1,10 +1,10 @@
-# rakuten_client.py
 import os
 import re
 import urllib.parse
 import requests
 import time
 import logging
+import json
 from dotenv import load_dotenv
 from typing import Dict
 
@@ -16,6 +16,31 @@ EXCLUDE_KEYWORDS = [
     "保証", "延長", "修理", "保護", "フィルム",
     "チケット", "サービス", "まとめ買い", "セット内容", "オプション"
 ]
+
+# 対象外ショップ（例：楽天Kobo電子書籍など）
+EXCLUDE_SHOP_SUBSTRINGS = [
+    "rakutenkobo-ebooks",
+]
+
+# 楽天側の「価格が安すぎる」商品を除外する下限（誤マッチ対策）
+MIN_RAKUTEN_PRICE = float(os.getenv("MIN_RAKUTEN_PRICE", "0"))
+
+# 検証用：深い検索をスキップするフラグ
+FAST_MODE = os.getenv("RAKUTEN_FAST_MODE", "0") == "1"
+
+# シンプルなディスクキャッシュ
+RAKUTEN_CACHE_PATH = os.getenv("RAKUTEN_CACHE_PATH", "rakuten_cache.json")
+try:
+    with open(RAKUTEN_CACHE_PATH, "r", encoding="utf-8") as f:
+        RAKUTEN_CACHE: Dict[str, list] = json.load(f)
+    logger.info("[楽天CACHE] 読込成功 path=%s entries=%d", RAKUTEN_CACHE_PATH, len(RAKUTEN_CACHE))
+except FileNotFoundError:
+    RAKUTEN_CACHE = {}
+    logger.info("[楽天CACHE] ファイルなし → 新規作成 path=%s", RAKUTEN_CACHE_PATH)
+except Exception as e:
+    RAKUTEN_CACHE = {}
+    logger.error("[楽天CACHE読込エラー] %s", e)
+
 
 def extract_quantity_from_rakuten_title(title: str) -> int:
     import re
@@ -175,10 +200,6 @@ def escape_rakuten_keyword(
         logger.warning("[楽天 keyword] エンコード後にバイト長オーバー → fallback: %s", fallback)
         return fallback
 
-    # if len(keyword) < 4 or re.fullmatch(r'[a-zA-Z0-9\- ]+', keyword):
-    #     logger.debug("[楽天 keyword] 内容が希薄/単純文字列 → fallback: %s", fallback)
-    #     return fallback
-
     if len(keyword) < 4:
         return fallback  # 長さチェックのみ残す
 
@@ -208,7 +229,7 @@ def perform_rakuten_api_search(keyword: str, app_id: str):
     params = {
         'applicationId': app_id,
         'keyword': keyword,
-        'hits': 20,
+        'hits': int(os.getenv("RAKUTEN_HITS", "10")),  # デフォルト10件程度
         'sort': '+itemPrice',
         'field': 0,
         'availability': 1
@@ -294,9 +315,29 @@ def get_rakuten_info(asins: dict) -> dict:
         brand = (info.get('brand') or '').strip()
         model = (info.get('model') or '').strip()
         fallback = jan if len(jan) >= 4 else asin
+        cache_key = fallback
 
         item_infos = []
         items = []
+
+        # まずキャッシュチェック
+        if cache_key in RAKUTEN_CACHE:
+            cached_entries = RAKUTEN_CACHE[cache_key] or []
+            logger.info("[楽天CACHE HIT] key=%s entries=%d", cache_key, len(cached_entries))
+
+            # キャッシュ内容を info に展開
+            for idx2, entry in enumerate(cached_entries[:3], start=1):
+                for key, value in entry.items():
+                    info[f"{key}_{idx2}"] = value
+            for idx2 in range(len(cached_entries) + 1, 4):
+                for field in ['rakuten_cost', 'rakuten_point_rate', 'rakuten_point',
+                              'rakuten_postage_flag', 'rakuten_effective_cost',
+                              'rakuten_quantity', 'rakuten_effective_cost_per_item',
+                              'rakuten_url']:
+                    info[f"{field}_{idx2}"] = None
+
+            # キャッシュヒット時はAPI呼び出しなしで次のASINへ
+            continue
 
         # ❶ JAN検索
         if len(jan) >= 4:
@@ -315,8 +356,12 @@ def get_rakuten_info(asins: dict) -> dict:
                 logger.warning(f"[Rakuten] ASIN={asin} タイトル検索スキップ fallback不正: {ve}")
                 items = []
 
-        # ③ 商品番号候補抽出→IchibaItemSearch
-        if not items:
+        # FAST_MODE の場合はここまで（JAN/タイトル）で諦める
+        if not items and FAST_MODE:
+            logger.info("[Rakuten FAST_MODE] ASIN=%s key=%s 深い検索スキップ", asin, cache_key)
+
+        # ③ 商品番号候補抽出→IchibaItemSearch（FAST_MODEでは実行しない）
+        if not items and not FAST_MODE:
             logger.info(f"[Rakuten] NO_HIT ASIN={asin}, fallback={fallback}")
             codes = extract_product_code_candidates(title)
             if codes:
@@ -330,9 +375,10 @@ def get_rakuten_info(asins: dict) -> dict:
                         item for item in items
                         if jan not in (item.get('itemName', '') + item.get('itemCaption', ''))
                     ]
+                time.sleep(sleep_time)
 
-        # ② JANでNO_HIT→メーカー名＋型番で検索
-        if not items:
+        # ② JANでNO_HIT→メーカー名＋型番で検索（FAST_MODEでは実行しない）
+        if not items and not FAST_MODE:
             if brand and model:
                 keyword_brand_model = f"{brand} {model}".strip()
                 if len(keyword_brand_model) >= 4:
@@ -344,8 +390,8 @@ def get_rakuten_info(asins: dict) -> dict:
                         logger.warning(f"[楽天SKIP] ASIN={asin} → メーカー＋型番検索時エラー: {ve}")
                         items = []
 
-        # ❸ 型番等 短縮キーワード最終検索
-        if not items:
+        # ❸ 型番等 短縮キーワード最終検索（FAST_MODEでは実行しない）
+        if not items and not FAST_MODE:
             short_kw = extract_core_tokens(title)
             try:
                 keyword_retry = escape_rakuten_keyword(short_kw, fallback)
@@ -364,22 +410,59 @@ def get_rakuten_info(asins: dict) -> dict:
             title = item.get('itemName') or ""
             caption = item.get('itemCaption', "")
 
-            # logger.debug("[DEBUG] brand: %s", brand)
-            # logger.debug("[DEBUG] model: %s", model)
-            # logger.debug("[DEBUG] title: %s", title)
-            # logger.debug("[DEBUG] caption: %s", caption)
+            item_url = item.get("itemUrl") or ""
+            item_code = item.get("itemCode") or ""
+            shop_name = item.get("shopName") or ""
 
+            # ① Kobo/電子書籍系など、明らかに対象外のショップを除外
+            if any(s in item_url for s in EXCLUDE_SHOP_SUBSTRINGS) or any(
+                s in item_code for s in EXCLUDE_SHOP_SUBSTRINGS
+            ):
+                logger.info(
+                    "[楽天除外] 電子書籍系ショップ itemCode=%s shopName=%s url=%s",
+                    item_code,
+                    shop_name,
+                    item_url,
+                )
+                continue
+
+            # 中古・訳ありなどは除外
             if is_used_product(title, caption):
                 continue
+            # タイトルNGワードで除外
             if any(kw in title for kw in EXCLUDE_KEYWORDS):
                 continue
 
-            price = float(item.get('itemPrice', 0))
-            point_rate = float(item.get('pointRate', 0)) / 100
+            # ② 価格取得
+            try:
+                price = float(item.get('itemPrice', 0) or 0)
+            except Exception:
+                logger.warning("[楽天除外] 価格が数値に変換できない itemCode=%s", item_code)
+                continue
+
+            # 0円 or マイナスは明らかに異常
+            if price <= 0:
+                logger.debug("[楽天除外] 価格が0以下 itemCode=%s price=%s", item_code, price)
+                continue
+
+            # ③ 楽天価格が異常に安いものを除外（誤マッチ対策）
+            if MIN_RAKUTEN_PRICE > 0 and price < MIN_RAKUTEN_PRICE:
+                logger.debug(
+                    "[楽天除外] 価格が下限未満 itemCode=%s price=%s threshold=%s",
+                    item_code,
+                    price,
+                    MIN_RAKUTEN_PRICE,
+                )
+                continue
+
+            point_rate = float(item.get('pointRate', 0) or 0) / 100
             point = int(price * point_rate)
+
             quantity = extract_quantity_from_rakuten_title(title)
             quantity = max(quantity, 1)
+
             effective_per_item = (price - point) / quantity
+
             item_infos.append({
                 'effective_per_item': effective_per_item,
                 'rakuten_cost': price,
@@ -389,11 +472,15 @@ def get_rakuten_info(asins: dict) -> dict:
                 'rakuten_effective_cost': price - point,
                 'rakuten_quantity': quantity,
                 'rakuten_effective_cost_per_item': effective_per_item,
-                'rakuten_url': item.get('itemUrl')
+                'rakuten_url': item_url
             })
 
-        # ヒット順に並び替え & 情報登録
+        # ヒット順に並び替え & 情報登録（最大3件）
         item_infos = sorted(item_infos, key=lambda x: x['effective_per_item'])[:3]
+
+        # キャッシュに保存（NO_HITでも空配列としてキャッシュ）
+        RAKUTEN_CACHE[cache_key] = item_infos
+
         for idx2, entry in enumerate(item_infos, start=1):
             for key, value in entry.items():
                 info[f"{key}_{idx2}"] = value
@@ -405,6 +492,14 @@ def get_rakuten_info(asins: dict) -> dict:
                 info[f"{field}_{idx2}"] = None
 
         time.sleep(sleep_time)
+
+    # ループ完了後にキャッシュを書き出し
+    try:
+        with open(RAKUTEN_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(RAKUTEN_CACHE, f, ensure_ascii=False)
+        logger.info("[楽天CACHE] 保存完了 path=%s entries=%d", RAKUTEN_CACHE_PATH, len(RAKUTEN_CACHE))
+    except Exception as e:
+        logger.error("[楽天CACHE保存エラー] %s", e)
 
     return asins
 
@@ -468,97 +563,6 @@ def search_ichiba_from_product(jan=None, code=None, product_id=None):
     finally:
         time.sleep(sleep_time)
     return []
-
-    # 下は旧実装（コメント）の print も logger に変えてある。必要になったら復活して使えるようにしておく。
-    # for asin, info in asins.items():
-    #     if info is None:
-    #         logger.info("[楽天SKIP] ASIN=%s → infoがNone", asin)
-    #         continue
-    #
-    #     title = (info.get('title') or '').strip()
-    #     jan = (info.get('jan') or '').strip()
-    #     brand = (info.get('brand') or '').strip()
-    #     model = (info.get('model') or '').strip()
-    #     fallback = jan if len(jan) >= 4 else asin
-    #
-    #     item_infos = []
-    #     items = []
-    #
-    #     # 検索パターンリスト組み立て: 優先順に重複無しで
-    #     search_patterns = []
-    #     if jan and len(jan) >= 7:
-    #         search_patterns.append(jan)
-    #     if brand and model:
-    #         search_patterns.append(f"{brand} {model}")
-    #     if model:
-    #         search_patterns.append(model)
-    #     # タイトル特徴語ごと単体
-    #     feature_words = extract_feature_words(title)
-    #     for w in feature_words:
-    #         if w not in search_patterns:
-    #             search_patterns.append(w)
-    #     # 除重
-    #     search_patterns = [w for i, w in enumerate(search_patterns) if w and w not in search_patterns[:i]]
-    #
-    #     # パターンごと探索
-    #     hit_flag = False
-    #     for keyword in search_patterns:
-    #         logger.info("[楽天多段検索] keyword=%s", keyword)
-    #         try:
-    #             items = perform_rakuten_api_search(keyword, app_id)
-    #         except Exception as ve:
-    #             logger.warning("[楽天SKIP] ASIN=%s → keyword=%s エラー: %s", asin, keyword, ve)
-    #             items = []
-    #         time.sleep(sleep_time)
-    #         if items:
-    #             hit_flag = True
-    #             break  # 最初にヒットしたパターン（最大3件）で抜ける
-    #
-    #     # 結果処理（item_infosへの記録）
-    #     if not items:
-    #         logger.info("[楽天NO_HIT] ASIN=%s, fallback=%s", asin, fallback)
-    #
-    #     for item in items[:3]:
-    #         t_title = item.get('itemName') or ""
-    #         caption = item.get('itemCaption', "")
-    #         if is_used_product(t_title, caption):
-    #             continue
-    #         if any(kw in t_title for kw in EXCLUDE_KEYWORDS):
-    #             continue
-    #
-    #         price = float(item.get('itemPrice', 0))
-    #         point_rate = float(item.get('pointRate', 0)) / 100
-    #         point = int(price * point_rate)
-    #         quantity = extract_quantity_from_rakuten_title(t_title)
-    #         quantity = max(quantity, 1)
-    #         effective_per_item = (price - point) / quantity
-    #         item_infos.append({
-    #             'effective_per_item': effective_per_item,
-    #             'rakuten_cost': price,
-    #             'rakuten_point_rate': point_rate,
-    #             'rakuten_point': point,
-    #             'rakuten_postage_flag': int(item.get('postageFlag', 0)),
-    #             'rakuten_effective_cost': price - point,
-    #             'rakuten_quantity': quantity,
-    #             'rakuten_effective_cost_per_item': effective_per_item,
-    #             'rakuten_url': item.get('itemUrl')
-    #         })
-    #
-    #     # ヒット順に並び替え＆情報登録（最大3件）
-    #     item_infos = sorted(item_infos, key=lambda x: x['effective_per_item'])[:3]
-    #     for idx, entry in enumerate(item_infos, start=1):
-    #         for key, value in entry.items():
-    #             info[f"{key}_{idx}"] = value
-    #     for idx in range(len(item_infos) + 1, 4):
-    #         for field in ['rakuten_cost', 'rakuten_point_rate', 'rakuten_point',
-    #                       'rakuten_postage_flag', 'rakuten_effective_cost',
-    #                       'rakuten_quantity', 'rakuten_effective_cost_per_item',
-    #                       'rakuten_url']:
-    #             info[f"{field}_{idx}"] = None
-    #
-    #     time.sleep(sleep_time)
-    #
-    # return asins
 
 
 def extract_feature_words(txt):

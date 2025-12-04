@@ -42,9 +42,8 @@ class PriceSearchCondition(BaseModel):
     keyword: Optional[str] = None       # ASIN or タイトルの部分一致
     min_profit: Optional[float] = None  # 最低利益（円）
     min_roi: Optional[float] = None     # 最低 ROI（％）
-    limit: int = 50                     # 最大件数
+    limit: int = 1000                   # ★ デフォルト 1000件
     only_pass_filter: bool = False      # True なら pass_filter=True のみ
-
 
 class PriceItem(BaseModel):
     asin: str
