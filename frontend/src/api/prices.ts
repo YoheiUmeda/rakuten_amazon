@@ -12,17 +12,16 @@ export interface PriceSearchCondition {
 // 🔍 1件分の結果
 export interface PriceItem {
   asin: string;
-  title: string | null;
+  title: string;
   amazon_price: number | null;
   rakuten_price: number | null;
-  profit_per_item: number | null;
+  profit_per_item: number | null; // ← これがあること
   roi_percent: number | null;
-  checked_at: string; // ISO8601
-  amazon_url: string | null;
-  rakuten_url: string | null;
-
-  // サーバ側にあるならここで拾っておく（なくても動作には影響なし）
-  pass_filter?: boolean;
+  diff: number | null;
+  pass_filter: boolean;
+  checked_at: string;
+  amazon_url: string;
+  rakuten_url: string;
 }
 
 // 🔍 一覧のレスポンス

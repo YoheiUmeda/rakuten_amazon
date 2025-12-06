@@ -1,9 +1,8 @@
-# app/main_fastapi.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from batch_runner import run_batch_once_noarg
-from app.api import prices  # ← 追加
+from app.api import prices
 
 app = FastAPI()
 
@@ -17,28 +16,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 検索API (/api/prices) を有効化
 app.include_router(prices.router, prefix="/api")
+
 
 @app.post("/api/prices/run")
 def run_prices_job():
     """
     Keepa → Amazon → 楽天 → Excel出力までを1回実行し、
     件数とExcelパスを返す。
-    """
-    summary = run_batch_once_noarg()
 
-    asin_count = int(
-        summary.get("asin_count")
-        or summary.get("total_asins")
-        or 0
-    )
+    ※ Pricing で QuotaExceeded 疑いがある場合のみ 503 を返す。
+       「候補0件」は正常完了として 200 を返す。
+    """
+    try:
+        summary = run_batch_once_noarg()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"batch execution failed: {type(e).__name__}",
+        )
+
+    if not summary:
+        raise HTTPException(
+            status_code=500,
+            detail="batch returned empty summary",
+        )
+
+    # Pricing側で実質全滅しているパターンだけ 503 にする
+    if summary.get("pricing_quota_suspected"):
+        raise HTTPException(
+            status_code=503,
+            detail="Amazon Pricing API quota exceeded (no or very few pricing results).",
+        )
+
+    asin_count = int(summary.get("asin_count") or 0)
     excel_path = summary.get("excel_path")
 
     return {
         "status": "completed",
         "asin_count": asin_count,
         "excel_path": excel_path,
+        # 追加で詳細を見たいとき用
+        "summary": summary,
     }
 
 

@@ -273,7 +273,9 @@ const PriceSearchPage: React.FC = () => {
             </div>
             {runningJob.asin_count !== undefined && (
               <div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>ヒット件数</div>
+                <div style={{ fontSize: 11, color: "#6b7280" }}>
+                  ヒット件数
+                </div>
                 <div style={{ fontWeight: 600 }}>
                   {runningJob.asin_count} 件
                 </div>
@@ -371,22 +373,22 @@ const PriceSearchPage: React.FC = () => {
             }}
           >
             <span>表示件数</span>
-              <select
-                value={condition.limit ?? 50}
-                onChange={handleChangeLimitSelect}
-                style={{
-                  padding: "2px 6px",
-                  fontSize: 12,
-                  borderRadius: 4,
-                  border: "1px solid #d1d5db",
-                  background: "#ffffff",
-                }}
-              >
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
+            <select
+              value={condition.limit ?? 50}
+              onChange={handleChangeLimitSelect}
+              style={{
+                padding: "2px 6px",
+                fontSize: 12,
+                borderRadius: 4,
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
+              }}
+            >
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
             <span>
               検索結果:{" "}
               <strong style={{ fontWeight: 600 }}>{items.length}</strong> 件
@@ -781,10 +783,43 @@ const PriceSearchPage: React.FC = () => {
                   >
                     <td style={tdStyle}>{item.asin}</td>
                     <td style={tdStyle}>{item.title ?? ""}</td>
-                    <td style={tdStyle}>{formatYen(item.amazon_price)}</td>
-                    <td style={tdStyle}>{formatYen(item.rakuten_price)}</td>
-                    <td style={tdStyle}>{formatYen(item.profit_per_item)}</td>
-                    <td style={tdStyle}>{formatPercent(item.roi_percent)}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatYen(item.amazon_price)}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatYen(item.rakuten_price)}
+                    </td>
+                    {/* ★ 粗利はバックエンドの profit_per_item をそのまま表示 */}
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatYen(item.profit_per_item)}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatPercent(item.roi_percent)}
+                    </td>
                     <td style={tdStyle}>{item.checked_at}</td>
                     <td style={tdStyle}>
                       {item.amazon_url ? (

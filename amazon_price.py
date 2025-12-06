@@ -1,40 +1,58 @@
 # amazon_price.py
 from __future__ import annotations
 
-from typing import Dict, Any, List
 import logging
+from typing import List, Dict, Any
 
 from spapi_client import get_best_amazon_price
-from keepa_client import enrich_results_with_keepa_jan
 
 logger = logging.getLogger(__name__)
 
 
 def get_amazon_prices(asins: List[str]) -> Dict[str, Dict[str, Any]]:
     """
-    ASINリストを受け取り、SP-API と Keepa を使って
-    Amazonの価格情報＋JAN等の詳細を付与して返す。
+    Keepa で拾った ASIN リストに対して、
+    SP-API から「最良オファー情報」をまとめて取得する。
 
     戻り値:
-        { ASIN: { price, shipping, is_fba, jan, title, ... }, ... }
+        {
+            asin: {
+                "price": float,
+                "shipping": float,
+                "is_fba": bool,
+                "buybox": bool,
+                "seller": str,
+                "title": str,
+                "amazon_quantity": Any,
+                "amazon_price_per_item": str,
+            },
+            ...
+        }
     """
+    logger.info("[AmazonPrice] ASIN数: %d 件 → SP-API へ問い合わせ開始", len(asins))
+
     if not asins:
-        logger.info("[AmazonPrice] 入力ASINが0件のためスキップ")
+        logger.warning("[AmazonPrice] ASIN が 0 件のため、何もしません")
         return {}
 
-    logger.info(f"[AmazonPrice] SP-API 価格取得開始: {len(asins)} ASIN")
+    try:
+        results = get_best_amazon_price(asins)
+        logger.info(
+            "[AmazonPrice] 取得完了: %d / %d ASIN に対してオファー情報あり",
+            len(results),
+            len(asins),
+        )
 
-    # 1️⃣ SP-APIで最良オファーを取得
-    amazon_data = get_best_amazon_price(asins)
-    logger.info(f"[AmazonPrice] SP-API 価格取得完了: {len(amazon_data)} ASIN")
+        # 1件も取れなかったときは、一応ワーニングを出しておく
+        if not results:
+            logger.warning(
+                "[AmazonPrice] SP-API から有効なオファーが 0 件でした "
+                "(クエリ・ASINリスト・レート制限ログを確認してください)"
+            )
 
-    if not amazon_data:
-        logger.warning("[AmazonPrice] SP-API結果が空 → 後続処理スキップ")
+        return results
+
+    except Exception as e:
+        # ここは「致命的エラー」扱いでログを残し、空 dict を返す
+        logger.exception("[AmazonPrice] get_best_amazon_price 呼び出しでエラー: %s", e)
         return {}
-
-    # 2️⃣ KeepaでJAN・販売数など詳細情報を enrich
-    logger.info("[AmazonPrice] Keepa 詳細情報付与開始 (JAN / 販売数 / 数量 等)")
-    enriched = enrich_results_with_keepa_jan(amazon_data)
-    logger.info(f"[AmazonPrice] Keepa 詳細情報付与完了: {len(enriched)} ASIN")
-
-    return enriched
