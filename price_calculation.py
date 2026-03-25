@@ -63,7 +63,7 @@ def calculate_price_difference(
     for asin, info in asins.items():
         # -------- Amazon 側 --------
         price = float(info.get("price") or 0.0)
-        fee = float(info.get("total_fee") or info.get("fee") or 0.0)
+        raw_fee = info.get("total_fee") if info.get("total_fee") is not None else info.get("fee")
         title = info.get("title") or ""
 
         # Amazon 側の数量（「10枚」など）。取れなければ 1。
@@ -79,18 +79,40 @@ def calculate_price_difference(
         if amazon_quantity <= 0:
             amazon_quantity = 1
 
-        # 1SKUあたりの受取額（販売価格 - 手数料）
-        amazon_net_total = price - fee
-        amazon_received_per_item = (
-            amazon_net_total / amazon_quantity if amazon_quantity > 0 else None
-        )
+        # fee不要なので先に算出
         amazon_price_per_item = (
             price / amazon_quantity if amazon_quantity > 0 else None
         )
 
         # -------- 楽天 側 --------
+        # fee不要なので先に実行（rakuten_effective_cost_total 保持のため）
         rak_total, rak_per_item, rak_qty = _choose_best_rakuten_offer(
             info, amazon_quantity
+        )
+
+        # FBA手数料が未取得の場合: fee依存フィールドのみ None、fee非依存フィールドは保持
+        if raw_fee is None:
+            info.update(
+                {
+                    "amazon_quantity": amazon_quantity,
+                    "amazon_price_per_item": amazon_price_per_item,
+                    "amazon_received_per_item": None,
+                    "rakuten_effective_cost_total": rak_total,
+                    "rakuten_effective_cost_per_item_selected": rak_per_item,
+                    "price_diff": None,
+                    "price_diff_after_point": None,
+                    "profit_per_item": None,
+                    "profit_rate": None,
+                }
+            )
+            continue
+
+        fee = float(raw_fee)
+
+        # 1SKUあたりの受取額（販売価格 - 手数料）
+        amazon_net_total = price - fee
+        amazon_received_per_item = (
+            amazon_net_total / amazon_quantity if amazon_quantity > 0 else None
         )
 
         # 楽天候補が取れなかった場合は利益系は None

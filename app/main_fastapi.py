@@ -3,8 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from batch_runner import run_batch_once_noarg
 from app.api import prices
+from app.db import _get_session_local
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def _check_db_on_startup() -> None:
+    """
+    FastAPI 起動時に DATABASE_URL と SessionLocal の初期化チェックを行う。
+    未設定の場合は起動を中断して明示エラーを出す。
+    """
+    try:
+        _get_session_local()
+    except RuntimeError as e:
+        raise RuntimeError(f"FastAPI起動失敗: {e}") from e
 
 origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

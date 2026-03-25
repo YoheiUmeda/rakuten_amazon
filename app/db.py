@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from functools import lru_cache
 from typing import Iterator, Generator
 
 from dotenv import load_dotenv
@@ -12,28 +13,28 @@ from sqlalchemy.orm import Session, sessionmaker
 # .env 読み込み
 load_dotenv(override=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL が設定されていません")
 
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    future=True,
-)
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-    future=True,
-)
+@lru_cache(maxsize=1)
+def _get_session_local():
+    """
+    SessionLocal を遅延生成して返す（初回呼び出し時のみ engine / sessionmaker を作成）。
+    DATABASE_URL が未設定の場合はここで初めて RuntimeError を送出する。
+    import 時点ではエラーにならない。
+    """
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL が設定されていません。"
+            "DB保存・FastAPI を使う場合は .env に DATABASE_URL を設定してください。"
+        )
+    engine = create_engine(url, echo=False, future=True)
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
 @contextmanager
 def get_session() -> Iterator[Session]:
     """スクリプト等で使う用（with パターン）"""
-    session: Session = SessionLocal()
+    session: Session = _get_session_local()()
     try:
         yield session
         session.commit()
@@ -49,7 +50,7 @@ def get_db() -> Generator[Session, None, None]:
     FastAPI の Depends 用。
     例: def endpoint(db: Session = Depends(get_db)):
     """
-    db: Session = SessionLocal()
+    db: Session = _get_session_local()()
     try:
         yield db
     finally:

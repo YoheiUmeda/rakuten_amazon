@@ -178,7 +178,7 @@ def annotate_fees_to_asin_price_map(
 
                 shipping_fee = apply_shipping_fee(asin)
                 enriched[asin]["fba_shipping_fee"] = shipping_fee
-                enriched[asin]["total_fee"] = (fee or 0) + shipping_fee
+                enriched[asin]["total_fee"] = (fee + shipping_fee) if fee is not None else None
             else:
                 logger.warning("[FBA Fee] ASIN=%s Status=%s → feeなし", asin, status)
                 enriched[asin]["fee"] = None
@@ -198,7 +198,7 @@ def annotate_fees_to_asin_price_map(
 
             shipping_fee = apply_shipping_fee(asin)
             enriched[asin]["fba_shipping_fee"] = shipping_fee
-            enriched[asin]["total_fee"] = (fee or 0) + shipping_fee
+            enriched[asin]["total_fee"] = (fee + shipping_fee) if fee is not None else None
 
     else:
         logger.error(

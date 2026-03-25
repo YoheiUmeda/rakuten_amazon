@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from .db import SessionLocal
+from .db import get_session
 from .models import PriceSnapshot
 from .schemas import PriceResult, PriceSearchCondition, PriceItem
 
@@ -18,7 +18,7 @@ def save_price_results(results: List[PriceResult]) -> None:
     if not results:
         return
 
-    with SessionLocal() as db:
+    with get_session() as db:
         objects: List[PriceSnapshot] = []
 
         for r in results:
@@ -56,68 +56,68 @@ def search_prices(
     - min_roi: 最低ROI（％）
     - limit: 最大件数
     """
-    own_session = False
     if db is None:
-        db = SessionLocal()
-        own_session = True
+        with get_session() as _db:
+            return _search_prices_impl(condition, _db)
+    return _search_prices_impl(condition, db)
 
-    try:
-        q = db.query(PriceSnapshot)
 
-        # ▼ キーワード（ASIN / タイトル の部分一致）
-        if condition.keyword:
-            kw = f"%{condition.keyword}%"
-            q = q.filter(
-                or_(
-                    PriceSnapshot.asin.ilike(kw),
-                    PriceSnapshot.title.ilike(kw),
-                )
+def _search_prices_impl(
+    condition: PriceSearchCondition,
+    db: Session,
+) -> Tuple[List[PriceItem], int]:
+    q = db.query(PriceSnapshot)
+
+    # ▼ キーワード（ASIN / タイトル の部分一致）
+    if condition.keyword:
+        kw = f"%{condition.keyword}%"
+        q = q.filter(
+            or_(
+                PriceSnapshot.asin.ilike(kw),
+                PriceSnapshot.title.ilike(kw),
             )
-
-        # ▼ 最低利益（円）
-        if condition.min_profit is not None:
-            q = q.filter(PriceSnapshot.profit_per_item >= condition.min_profit)
-
-        # ▼ 最低 ROI（％）
-        if condition.min_roi is not None:
-            q = q.filter(PriceSnapshot.roi_percent >= condition.min_roi)
-
-        # ▼ 件数カウント（limit かける前）
-        total = q.count()
-
-        # ▼ 並び順
-        #   1. pass_filter=True を優先
-        #   2. 利益が大きい順
-        #   3. 新しい順
-        q = (
-            q.order_by(
-                PriceSnapshot.pass_filter.desc(),
-                PriceSnapshot.profit_per_item.desc(),
-                PriceSnapshot.checked_at.desc(),
-            )
-            .limit(condition.limit)
         )
 
-        rows: List[PriceSnapshot] = q.all()
+    # ▼ 最低利益（円）
+    if condition.min_profit is not None:
+        q = q.filter(PriceSnapshot.profit_per_item >= condition.min_profit)
 
-        # ▼ API 用スキーマに詰め替え
-        items: List[PriceItem] = [
-            PriceItem(
-                asin=row.asin,
-                title=row.title,
-                amazon_price=row.amazon_price,
-                rakuten_price=row.rakuten_price,
-                profit_per_item=row.profit_per_item,
-                roi_percent=row.roi_percent,
-                amazon_url=row.amazon_url,
-                rakuten_url=row.rakuten_url,
-                checked_at=row.checked_at,
-            )
-            for row in rows
-        ]
+    # ▼ 最低 ROI（％）
+    if condition.min_roi is not None:
+        q = q.filter(PriceSnapshot.roi_percent >= condition.min_roi)
 
-        return items, total
+    # ▼ 件数カウント（limit かける前）
+    total = q.count()
 
-    finally:
-        if own_session:
-            db.close()
+    # ▼ 並び順
+    #   1. pass_filter=True を優先
+    #   2. 利益が大きい順
+    #   3. 新しい順
+    q = (
+        q.order_by(
+            PriceSnapshot.pass_filter.desc(),
+            PriceSnapshot.profit_per_item.desc(),
+            PriceSnapshot.checked_at.desc(),
+        )
+        .limit(condition.limit)
+    )
+
+    rows: List[PriceSnapshot] = q.all()
+
+    # ▼ API 用スキーマに詰め替え
+    items: List[PriceItem] = [
+        PriceItem(
+            asin=row.asin,
+            title=row.title,
+            amazon_price=row.amazon_price,
+            rakuten_price=row.rakuten_price,
+            profit_per_item=row.profit_per_item,
+            roi_percent=row.roi_percent,
+            amazon_url=row.amazon_url,
+            rakuten_url=row.rakuten_url,
+            checked_at=row.checked_at,
+        )
+        for row in rows
+    ]
+
+    return items, total

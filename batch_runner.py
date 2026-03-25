@@ -365,7 +365,16 @@ def run_batch_once(
         asin_count = len(price_results)
         summary["db_saved_asins"] = asin_count
         log.info("[BATCH] DB へ %d 件保存中...", asin_count)
-        save_price_results(price_results)
+        try:
+            save_price_results(price_results)
+        except RuntimeError as e:
+            # DATABASE_URL 未設定など、設定上の問題によるスキップ（想定内）
+            log.warning("[BATCH] DB保存スキップ（DATABASE_URL未設定）: %s", e)
+            summary["db_saved_asins"] = 0
+        except Exception as e:
+            # DB接続失敗・SQL異常など、実行時の異常（想定外）
+            log.error("[BATCH] DB保存失敗（接続・SQL異常の可能性）: %s", e)
+            summary["db_saved_asins"] = 0
 
     # Excel 出力（0件でも export_asin_dict_to_excel の仕様に従う）
     excel_path = export_asin_dict_to_excel(target_result)

@@ -216,7 +216,14 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button) 
 
         # 4-2️⃣ DB に一括保存
         if price_results:
-            save_price_results(price_results)
+            try:
+                save_price_results(price_results)
+            except RuntimeError as e:
+                # DATABASE_URL 未設定など、設定上の問題によるスキップ（想定内）
+                log.warning("[GUI] DB保存スキップ（DATABASE_URL未設定）: %s", e)
+            except Exception as e:
+                # DB接続失敗・SQL異常など、実行時の異常（想定外）
+                log.error("[GUI] DB保存失敗（接続・SQL異常の可能性）: %s", e)
 
         # 4-3️⃣ Excel 出力（既存機能）
         excel_path = export_asin_dict_to_excel(target_result)
