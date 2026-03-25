@@ -8,6 +8,8 @@ from typing import Dict, Any, List
 import requests
 from dotenv import load_dotenv
 
+_KEEPA_TIMEOUT = (10, 30)  # (connect_timeout, read_timeout) 秒
+
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def get_keepa_summary(asins: List[str]) -> Dict[str, Dict[str, Any]]:
         }
 
         try:
-            r = requests.get(url, params=params, headers=headers)
+            r = requests.get(url, params=params, headers=headers, timeout=_KEEPA_TIMEOUT)
             r.raise_for_status()
             data = r.json()
         except Exception as e:

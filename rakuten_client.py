@@ -8,6 +8,8 @@ import json
 from dotenv import load_dotenv
 from typing import Dict
 
+_RAKUTEN_TIMEOUT = (10, 30)  # (connect_timeout, read_timeout) 秒
+
 # .envからAPIキー読込など
 load_dotenv(override=True)
 logger = logging.getLogger(__name__)
@@ -226,6 +228,7 @@ def extract_core_tokens(title: str) -> str:
 
 def perform_rakuten_api_search(keyword: str, app_id: str):
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
+    max_retries = int(os.getenv("RAKUTEN_MAX_RETRIES", "3"))
     params = {
         'applicationId': app_id,
         'keyword': keyword,
@@ -236,37 +239,82 @@ def perform_rakuten_api_search(keyword: str, app_id: str):
     }
     logger.debug(f"[RakutenAPI] keyword={keyword} params={params}")
 
-    try:
-        r = requests.get(url, params=params)
-        if r.status_code == 429 or ('error' in r.text and 'too_many_requests' in r.text):
-            logger.warning(f"[RakutenAPI] レート制限 status={r.status_code} keyword={keyword}")
-            time.sleep(10)
-            return perform_rakuten_api_search(keyword, app_id)
+    for attempt in range(max_retries):
+        is_last = (attempt + 1 == max_retries)
+        try:
+            r = requests.get(url, params=params, timeout=_RAKUTEN_TIMEOUT)
 
-        if r.status_code != 200:
-            logger.error(f"[RakutenAPI] HTTP {r.status_code} keyword={keyword}")
+            is_rate_limited = (
+                r.status_code == 429
+                or ('error' in r.text and 'too_many_requests' in r.text)
+            )
+            if is_rate_limited:
+                if is_last:
+                    logger.error(
+                        "[RakutenAPI] rate_limit 最大試行回数(%d)超過 keyword=%s",
+                        max_retries, keyword,
+                    )
+                    return []
+                wait = 10 * (attempt + 1)
+                logger.warning(
+                    "[RakutenAPI] rate_limit attempt=%d/%d wait=%ds keyword=%s",
+                    attempt + 1, max_retries, wait, keyword,
+                )
+                time.sleep(wait)
+                continue
+
+            if r.status_code != 200:
+                logger.error("[RakutenAPI] HTTP %s keyword=%s", r.status_code, keyword)
+                return []
+
+            js = r.json()
+            if "error" in js:
+                if js["error"] == "too_many_requests":
+                    if is_last:
+                        logger.error(
+                            "[RakutenAPI] rate_limit 最大試行回数(%d)超過 keyword=%s",
+                            max_retries, keyword,
+                        )
+                        return []
+                    wait = 10 * (attempt + 1)
+                    logger.warning(
+                        "[RakutenAPI] rate_limit attempt=%d/%d wait=%ds keyword=%s",
+                        attempt + 1, max_retries, wait, keyword,
+                    )
+                    time.sleep(wait)
+                    continue
+                logger.error("[RakutenAPI] APIエラー error=%s keyword=%s", js["error"], keyword)
+                return []
+
+            items = js.get('Items', [])
+            logger.info("[RakutenAPI] keyword=%s hit=%d件", keyword, len(items))
+            return [itemBlock['Item'] for itemBlock in items]
+
+        except requests.exceptions.Timeout:
+            if is_last:
+                logger.error(
+                    "[RakutenAPI] timeout 最大試行回数(%d)超過 keyword=%s",
+                    max_retries, keyword,
+                )
+                return []
+            wait = 10 * (attempt + 1)
+            logger.warning(
+                "[RakutenAPI] timeout attempt=%d/%d wait=%ds keyword=%s",
+                attempt + 1, max_retries, wait, keyword,
+            )
+            time.sleep(wait)
+            continue
+        except Exception as e:
+            logger.error("[RakutenAPI] 例外 keyword=%s → %s", keyword, e)
             return []
 
-        js = r.json()
-        if "error" in js:
-            logger.error(f"[RakutenAPI] APIエラー error={js['error']} keyword={keyword}")
-            if js["error"] == "too_many_requests":
-                time.sleep(10)
-                return perform_rakuten_api_search(keyword, app_id)
-            return []
-
-        items = js.get('Items', [])
-        logger.info(f"[RakutenAPI] keyword={keyword} hit={len(items)}件")
-        return [itemBlock['Item'] for itemBlock in items]
-
-    except Exception as e:
-        logger.error(f"[RakutenAPI] 例外 keyword={keyword} → {e}")
-        return []
+    return []
 
 
 def perform_rakuten_api_search_from_itemcode(itemcode: str, app_id: str):
     """API呼出し（エラーハンドリング付・結果返却）"""
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
+    max_retries = int(os.getenv("RAKUTEN_MAX_RETRIES", "3"))
     params = {
         'applicationId': app_id,
         'itemCode': itemcode,
@@ -275,27 +323,75 @@ def perform_rakuten_api_search_from_itemcode(itemcode: str, app_id: str):
         'field': 0,
         'availability': 0
     }
-    try:
-        r = requests.get(url, params=params)
-        if r.status_code == 429 or ('error' in r.text and 'too_many_requests' in r.text):
-            logger.warning("[楽天API] レート制限, スリープしてリトライ itemcode=%s", itemcode)
-            time.sleep(10)
-            return perform_rakuten_api_search_from_itemcode(itemcode, app_id)
-        if r.status_code != 200:
-            logger.error("[楽天APIエラー] status=%s itemcode=%s", r.status_code, itemcode)
+    for attempt in range(max_retries):
+        is_last = (attempt + 1 == max_retries)
+        try:
+            r = requests.get(url, params=params, timeout=_RAKUTEN_TIMEOUT)
+
+            is_rate_limited = (
+                r.status_code == 429
+                or ('error' in r.text and 'too_many_requests' in r.text)
+            )
+            if is_rate_limited:
+                if is_last:
+                    logger.error(
+                        "[楽天API] rate_limit 最大試行回数(%d)超過 itemcode=%s",
+                        max_retries, itemcode,
+                    )
+                    return []
+                wait = 10 * (attempt + 1)
+                logger.warning(
+                    "[楽天API] rate_limit attempt=%d/%d wait=%ds itemcode=%s",
+                    attempt + 1, max_retries, wait, itemcode,
+                )
+                time.sleep(wait)
+                continue
+
+            if r.status_code != 200:
+                logger.error("[楽天APIエラー] status=%s itemcode=%s", r.status_code, itemcode)
+                return []
+
+            js = r.json()
+            if "error" in js:
+                if js["error"] == "too_many_requests":
+                    if is_last:
+                        logger.error(
+                            "[楽天API] rate_limit 最大試行回数(%d)超過 itemcode=%s",
+                            max_retries, itemcode,
+                        )
+                        return []
+                    wait = 10 * (attempt + 1)
+                    logger.warning(
+                        "[楽天API] rate_limit attempt=%d/%d wait=%ds itemcode=%s",
+                        attempt + 1, max_retries, wait, itemcode,
+                    )
+                    time.sleep(wait)
+                    continue
+                logger.error("[楽天APIエラー] error=%s itemcode=%s", js["error"], itemcode)
+                return []
+
+            items = js.get('Items', [])
+            return [itemBlock['Item'] for itemBlock in items]
+
+        except requests.exceptions.Timeout:
+            if is_last:
+                logger.error(
+                    "[楽天API] timeout 最大試行回数(%d)超過 itemcode=%s",
+                    max_retries, itemcode,
+                )
+                return []
+            wait = 10 * (attempt + 1)
+            logger.warning(
+                "[楽天API] timeout attempt=%d/%d wait=%ds itemcode=%s",
+                attempt + 1, max_retries, wait, itemcode,
+            )
+            time.sleep(wait)
+            continue
+        except Exception as e:
+            logger.error("[楽天APIエラー/例外] itemcode=%s → %s", itemcode, e)
             return []
-        js = r.json()
-        if "error" in js:
-            logger.error("[楽天APIエラー] error=%s itemcode=%s", js["error"], itemcode)
-            if js["error"] == "too_many_requests":
-                time.sleep(10)
-                return perform_rakuten_api_search_from_itemcode(itemcode, app_id)
-            return []
-        items = js.get('Items', [])
-        return [itemBlock['Item'] for itemBlock in items]
-    except Exception as e:
-        logger.error("[楽天APIエラー/例外] itemcode=%s → %s", itemcode, e)
-        return []
+
+    return []
 
 
 def get_rakuten_info(asins: dict) -> dict:

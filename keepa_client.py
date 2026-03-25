@@ -12,6 +12,8 @@ from typing import Dict, Any, Iterable, List
 import requests
 from dotenv import load_dotenv
 
+_KEEPA_TIMEOUT = (10, 30)  # (connect_timeout, read_timeout) 秒
+
 from utils.utils import extract_quantity_combined
 
 load_dotenv(override=True)
@@ -42,7 +44,7 @@ def get_asins_from_finder(query_jsonstr: str) -> list[str]:
     params = {"key": api_key, "domain": 5, "selection": json.dumps(selection)}
 
     try:
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=params, timeout=_KEEPA_TIMEOUT)
         logger.debug("[Keepa] Request URL: %s", r.url)
         logger.debug(
             "[Keepa] Status: %s, Body preview: %s",
@@ -102,7 +104,7 @@ def enrich_results_with_keepa_jan(
         )
 
         try:
-            res = requests.get(url)
+            res = requests.get(url, timeout=_KEEPA_TIMEOUT)
             res.raise_for_status()
             data = res.json()
 
