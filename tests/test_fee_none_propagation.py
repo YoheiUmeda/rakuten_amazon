@@ -25,32 +25,24 @@ _MIN_ROI_PERCENT = 15.0
 # ─────────────────────────────────────────────
 
 def _batch_runner_pass_filter(data: dict) -> bool:
-    """batch_runner.py の pass_filter 判定ロジックの写し（L307-339）"""
-    amazon_received_per_item = data.get("amazon_received_per_item")
-    rakuten_cost_selected = data.get("rakuten_effective_cost_per_item_selected")
+    """batch_runner.py の pass_filter 判定ロジックの写し（1注文あたりベース）"""
+    profit_total = data.get("price_diff_after_point") or data.get("price_diff")
 
-    profit_per_item = data.get("profit_per_item")
-    if (
-        profit_per_item is None
-        and amazon_received_per_item is not None
-        and rakuten_cost_selected is not None
-    ):
-        profit_per_item = float(amazon_received_per_item) - float(rakuten_cost_selected)
-
+    rakuten_cost_total = data.get("rakuten_effective_cost_total")
     roi_percent = data.get("roi_percent")
     if roi_percent is None:
         profit_rate = data.get("profit_rate")
         if profit_rate is not None:
             roi_percent = float(profit_rate) * 100.0
-        elif profit_per_item is not None and rakuten_cost_selected:
-            base = float(rakuten_cost_selected)
+        elif profit_total is not None and rakuten_cost_total:
+            base = float(rakuten_cost_total)
             if base > 0:
-                roi_percent = profit_per_item / base * 100.0
+                roi_percent = float(profit_total) / base * 100.0
 
     return (
-        profit_per_item is not None
+        profit_total is not None
         and roi_percent is not None
-        and profit_per_item >= _MIN_PROFIT_YEN
+        and profit_total >= _MIN_PROFIT_YEN
         and roi_percent >= _MIN_ROI_PERCENT
     )
 
@@ -267,25 +259,22 @@ class TestPassFilterBatchRunner:
     # ── fee=None ケース ──────────────────────
 
     def test_fee_none_pass_filter_is_false(self):
-        """fee=None 由来で profit/rate が None のとき pass_filter=False になること"""
+        """fee=None 由来で price_diff が None のとき pass_filter=False になること"""
         # calculate_price_difference が fee=None で出力する data を再現
         data = {
-            "profit_per_item": None,       # fee依存 → None
-            "profit_rate": None,           # fee依存 → None
-            "amazon_received_per_item": None,              # fee依存 → None
-            "rakuten_effective_cost_per_item_selected": 1500.0,  # 楽天データは保持
+            "price_diff_after_point": None,   # fee依存 → None
+            "price_diff": None,               # fee依存 → None
+            "profit_rate": None,              # fee依存 → None
+            "rakuten_effective_cost_total": 3000.0,  # 楽天データは保持
         }
         assert _batch_runner_pass_filter(data) is False
 
-    def test_fee_none_fallback_is_blocked(self):
-        """amazon_received_per_item=None のとき fallback再計算が走らず False のまま"""
-        # profit_per_item=None かつ amazon_received_per_item=None
-        # → フォールバック条件 (amazon_received_per_item is not None) が False で再計算不可
+    def test_fee_none_both_diffs_none_is_false(self):
+        """price_diff_after_point も price_diff も None のとき profit_total=None で False"""
         data = {
-            "profit_per_item": None,
-            "profit_rate": None,
-            "amazon_received_per_item": None,
-            "rakuten_effective_cost_per_item_selected": 1500.0,
+            "price_diff_after_point": None,
+            "price_diff": None,
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
 
@@ -295,30 +284,25 @@ class TestPassFilterBatchRunner:
         """利益・ROI が閾値以上のとき pass_filter=True になること"""
         # profit=1200, rak_cost=3000 → ROI=40% (>15%)
         data = {
-            "profit_per_item": 1200.0,
-            "profit_rate": 0.40,
-            "amazon_received_per_item": 4200.0,
-            "rakuten_effective_cost_per_item_selected": 3000.0,
+            "price_diff_after_point": 1200.0,
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is True
 
     def test_profit_below_min_is_false(self):
         """利益が MIN_PROFIT_YEN(700円) 未満のとき pass_filter=False"""
         data = {
-            "profit_per_item": 500.0,     # < 700
-            "profit_rate": 0.40,
-            "amazon_received_per_item": 4200.0,
-            "rakuten_effective_cost_per_item_selected": 3000.0,
+            "price_diff_after_point": 500.0,   # < 700
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
 
     def test_roi_below_min_is_false(self):
         """ROI が MIN_ROI_PERCENT(15%) 未満のとき pass_filter=False"""
+        # profit=200, rak_cost=3000 → ROI=6.7% < 15%
         data = {
-            "profit_per_item": 800.0,     # >= 700
-            "profit_rate": 0.05,          # 5% < 15%
-            "amazon_received_per_item": 4200.0,
-            "rakuten_effective_cost_per_item_selected": 3000.0,
+            "price_diff_after_point": 200.0,
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
 

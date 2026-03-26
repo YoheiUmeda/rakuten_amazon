@@ -300,41 +300,31 @@ def run_batch_once(
         amazon_price_raw = data.get("price")
         rakuten_price_selected = data.get("rakuten_effective_cost_per_item_selected")
 
-        amazon_received_per_item = data.get("amazon_received_per_item")
-        rakuten_cost_selected = data.get("rakuten_effective_cost_per_item_selected")
-
-        # 利益/個（なければ計算）
-        profit_per_item = data.get("profit_per_item")
-        if (
-            profit_per_item is None
-            and amazon_received_per_item is not None
-            and rakuten_cost_selected is not None
-        ):
-            profit_per_item = float(amazon_received_per_item) - float(
-                rakuten_cost_selected
-            )
+        # 利益（1注文あたり = SKU全体）
+        profit_total = data.get("price_diff_after_point") or data.get("price_diff")
 
         # 利益率(%)
+        rakuten_cost_total = data.get("rakuten_effective_cost_total")
         roi_percent = data.get("roi_percent")
         if roi_percent is None:
             profit_rate = data.get("profit_rate")
             if profit_rate is not None:
                 roi_percent = float(profit_rate) * 100.0
-            elif profit_per_item is not None and rakuten_cost_selected:
-                base = float(rakuten_cost_selected)
+            elif profit_total is not None and rakuten_cost_total:
+                base = float(rakuten_cost_total)
                 if base > 0:
-                    roi_percent = profit_per_item / base * 100.0
+                    roi_percent = float(profit_total) / base * 100.0
 
         # 差額（ポイント考慮後 → なければ通常差額）
         diff = data.get("price_diff_after_point")
         if diff is None:
             diff = data.get("price_diff")
 
-        # フィルタ条件（最終保存用）
+        # フィルタ条件（1注文あたりベース）
         pass_filter = (
-            profit_per_item is not None
+            profit_total is not None
             and roi_percent is not None
-            and profit_per_item >= MIN_PROFIT_YEN
+            and profit_total >= MIN_PROFIT_YEN
             and roi_percent >= MIN_ROI_PERCENT
         )
 
@@ -350,8 +340,8 @@ def run_batch_once(
                 rakuten_price=float(rakuten_price_selected)
                 if rakuten_price_selected is not None
                 else None,
-                profit_per_item=float(profit_per_item)
-                if profit_per_item is not None
+                profit_per_item=float(profit_total)
+                if profit_total is not None
                 else None,
                 roi_percent=float(roi_percent) if roi_percent is not None else None,
                 diff=float(diff) if diff is not None else None,
