@@ -165,8 +165,6 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button) 
 
             # --- 利益・ROI（1注文あたり） ---
             profit_total = data.get("profit_total")
-            if profit_total is None:
-                profit_total = data.get("price_diff")
 
             roi_ratio = data.get("roi_total")
             if roi_ratio is None and profit_total is not None and rakuten_price_total:

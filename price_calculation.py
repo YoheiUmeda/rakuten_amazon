@@ -99,7 +99,7 @@ def calculate_price_difference(
                     "amazon_received_per_item": None,
                     "rakuten_effective_cost_total": rak_total,
                     "rakuten_effective_cost_per_item_selected": rak_per_item,
-                    "price_diff": None,
+                    "profit_total": None,
                     "profit_per_item": None,
                     "profit_rate": None,
                 }
@@ -123,7 +123,7 @@ def calculate_price_difference(
                     "amazon_received_per_item": amazon_received_per_item,
                     "rakuten_effective_cost_total": None,
                     "rakuten_effective_cost_per_item_selected": None,
-                    "price_diff": None,
+                    "profit_total": None,
                     "profit_per_item": None,
                     "profit_rate": None,
                 }
@@ -139,9 +139,6 @@ def calculate_price_difference(
             profit_total / amazon_quantity if amazon_quantity > 0 else profit_total
         )
 
-        # 「Amazon受取額 - 楽天原価」の差額（= profit_total と同じ）
-        price_diff = profit_total
-
         # ROI倍率（1.0 = 100%）
         roi = profit_total / rak_total if rak_total > 0 else None
 
@@ -152,7 +149,7 @@ def calculate_price_difference(
                 "amazon_received_per_item": amazon_received_per_item,
                 "rakuten_effective_cost_total": rak_total,
                 "rakuten_effective_cost_per_item_selected": rak_per_item,
-                "price_diff": price_diff,
+                "profit_total": profit_total,
                 "profit_per_item": profit_per_item,
                 "profit_rate": roi,
             }

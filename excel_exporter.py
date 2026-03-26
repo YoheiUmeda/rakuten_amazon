@@ -26,9 +26,9 @@ PREFERRED_ORDER: List[str] = [
     "amazon_price_per_item",        # 1個あたりカタログ価格
     "amazon_received_per_item",     # 手数料控除後の受取額
     "rakuten_effective_cost_per_item_selected",  # 選択した仕入れ単価
-    "profit_per_item",              # 1注文あたり利益（SKU合計）
+    "profit_per_item",              # 1個あたり利益（参考）
     "roi_percent",                  # 利益率（％）
-    "price_diff",                   # 利益額（ポイント・手数料控除後）
+    "profit_total",                 # 利益額（注文合計）
 
     # 動き・数量まわり
     "estimated_monthly_sold_30",
@@ -63,9 +63,9 @@ HEADER_MAP_JA: Dict[str, str] = {
     "amazon_received_per_item": "Amazon受取額",
     "rakuten_effective_cost_per_item_selected": "楽天単価(採用)",
     "rakuten_effective_cost_total": "楽天仕入合計(参考)",
-    "profit_per_item": "利益額（注文合計）",
+    "profit_per_item": "利益/個（参考）",
     "roi_percent": "利益率(%)",
-    "price_diff": "利益額",
+    "profit_total": "利益額（注文合計）",
 
     "estimated_monthly_sold_30": "推定月販(30日)",
     "estimated_monthly_sold": "推定月販",

@@ -102,7 +102,7 @@ class TestCalculatePriceDifferenceExtra:
         # profit 系は None
         assert info["profit_per_item"] is None
         assert info["profit_rate"] is None
-        assert info["price_diff"] is None
+        assert info["profit_total"] is None
 
     def test_rak_total_zero_makes_roi_none(self):
         """ポイントが原価と等しく rak_total=0 のとき roi が None になること（ゼロ除算ガード）"""
