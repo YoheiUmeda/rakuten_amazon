@@ -20,8 +20,6 @@ import requests as _requests
 from rakuten_client import (
     perform_rakuten_api_search,
     perform_rakuten_api_search_from_itemcode,
-    search_rakuten_product_api,
-    search_ichiba_from_product,
 )
 
 APP_ID = "test_app_id"
@@ -278,29 +276,3 @@ class TestRakutenTimeout:
         assert mock_get.call_count == 2
         mock_sleep.assert_called_once_with(10)  # attempt=0: wait=10*1
 
-    def test_search_rakuten_product_api_passes_timeout(self):
-        """search_rakuten_product_api が requests.get に timeout= を渡すこと"""
-        mock_resp = _mock_response(status_code=200, json_body={"Products": []}, text="ok")
-        with patch("rakuten_client.requests.get", return_value=mock_resp) as mock_get, \
-             patch("rakuten_client.time.sleep"):
-            search_rakuten_product_api("B000TEST01")
-        _, kwargs = mock_get.call_args
-        assert kwargs.get("timeout") == (10, 30)
-
-    def test_search_ichiba_from_product_passes_timeout(self):
-        """search_ichiba_from_product が requests.get に timeout= を渡すこと"""
-        mock_resp = _mock_response(status_code=200, json_body={"Items": []}, text="ok")
-        with patch("rakuten_client.requests.get", return_value=mock_resp) as mock_get, \
-             patch("rakuten_client.time.sleep"):
-            search_ichiba_from_product(jan="4901234567890")
-        _, kwargs = mock_get.call_args
-        assert kwargs.get("timeout") == (10, 30)
-
-    def test_sleep_time_float_string_does_not_raise(self):
-        """RAKUTEN_SLEEP_TIME='0.2' のような float 文字列でもクラッシュしないこと"""
-        mock_resp = _mock_response(status_code=200, json_body={"Products": []}, text="ok")
-        with patch("rakuten_client.requests.get", return_value=mock_resp), \
-             patch("rakuten_client.time.sleep") as mock_sleep, \
-             patch.dict(os.environ, {"RAKUTEN_SLEEP_TIME": "0.2"}):
-            search_rakuten_product_api("B000TEST01")
-        mock_sleep.assert_called_once_with(0.2)
