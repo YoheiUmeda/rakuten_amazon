@@ -661,11 +661,3 @@ def search_ichiba_from_product(jan=None, code=None, product_id=None):
     return []
 
 
-def extract_feature_words(txt):
-    """
-    タイトルから特徴的な単語（メーカー名/型番以外の固有ワードなど）を抽出
-    """
-    if not txt:
-        return []
-    tokens = re.findall(r'[A-Za-z0-9\-/.]+|[一-龥]{2,}|[ァ-ヴー]{2,}', txt)
-    return [t for t in tokens if len(t) >= 2]
