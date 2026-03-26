@@ -1,0 +1,13 @@
+{
+  "goal": "price_calculation.py に roi_percent 出力を追加（Excel列を正しく埋める）",
+  "targets": [
+    "price_calculation.py",
+    "tests/test_price_calculation.py",
+    "orchestrator_tasks/roi_percent_output.json"
+  ],
+  "pytest_commands": [
+    ".\\venv\\Scripts\\pytest.exe tests\\test_price_calculation.py tests\\test_fee_none_propagation.py -v --tb=short"
+  ],
+  "commit_message": "feat: add roi_percent output to price_calculation",
+  "allow_push": true
+}

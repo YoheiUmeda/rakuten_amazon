@@ -121,3 +121,56 @@ class TestCalculatePriceDifferenceExtra:
 
         assert info["rakuten_effective_cost_total"] == pytest.approx(0.0)
         assert info["profit_rate"] is None  # ゼロ除算ガード
+        assert info["roi_percent"] is None  # ゼロ除算ガード（roi_percent も None）
+
+
+# ─────────────────────────────────────────────
+#  roi_percent 出力テスト
+# ─────────────────────────────────────────────
+
+class TestRoiPercentOutput:
+
+    def test_roi_percent_equals_profit_rate_times_100(self):
+        """roi_percent が profit_rate * 100 と一致すること"""
+        asins = {
+            "B000TEST01": {
+                "price": 5000,
+                "total_fee": 500,
+                "amazon_quantity": 1,
+                "rakuten_cost_1": 3000,
+                "rakuten_point_1": 0,
+                "rakuten_quantity_1": 1,
+            }
+        }
+        result = calculate_price_difference(asins)
+        info = result["B000TEST01"]
+
+        assert info["profit_rate"] is not None
+        assert info["roi_percent"] == pytest.approx(info["profit_rate"] * 100.0)
+
+    def test_roi_percent_none_when_fee_is_none(self):
+        """fee=None のとき roi_percent も None になること"""
+        asins = {
+            "B000TEST01": {
+                "price": 5000,
+                "total_fee": None,
+                "amazon_quantity": 1,
+                "rakuten_cost_1": 3000,
+                "rakuten_point_1": 0,
+                "rakuten_quantity_1": 1,
+            }
+        }
+        result = calculate_price_difference(asins)
+        assert result["B000TEST01"]["roi_percent"] is None
+
+    def test_roi_percent_none_when_no_rakuten(self):
+        """楽天候補なしのとき roi_percent も None になること"""
+        asins = {
+            "B000TEST01": {
+                "price": 5000,
+                "total_fee": 500,
+                "amazon_quantity": 1,
+            }
+        }
+        result = calculate_price_difference(asins)
+        assert result["B000TEST01"]["roi_percent"] is None

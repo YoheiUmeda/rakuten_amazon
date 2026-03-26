@@ -102,6 +102,7 @@ def calculate_price_difference(
                     "profit_total": None,
                     "profit_per_item": None,
                     "profit_rate": None,
+                    "roi_percent": None,
                 }
             )
             continue
@@ -126,6 +127,7 @@ def calculate_price_difference(
                     "profit_total": None,
                     "profit_per_item": None,
                     "profit_rate": None,
+                    "roi_percent": None,
                 }
             )
             continue
@@ -152,6 +154,7 @@ def calculate_price_difference(
                 "profit_total": profit_total,
                 "profit_per_item": profit_per_item,
                 "profit_rate": roi,
+                "roi_percent": roi * 100.0 if roi is not None else None,
             }
         )
 
