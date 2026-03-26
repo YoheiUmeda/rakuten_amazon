@@ -194,8 +194,6 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button) 
                     roi_percent=float(roi_percent)
                     if roi_percent is not None
                     else None,
-                    # diff も 1注文あたり利益として保存
-                    diff=float(profit_total) if profit_total is not None else None,
                     pass_filter=pass_filter,
                     checked_at=datetime.utcnow(),
                 )

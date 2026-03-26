@@ -306,8 +306,6 @@ def run_batch_once(
         rakuten_cost_total = data.get("rakuten_effective_cost_total")
         roi_percent = data.get("roi_percent")
 
-        diff = data.get("profit_total")
-
         # フィルタ条件（1注文あたりベース）
         pass_filter = (
             profit_total is not None
@@ -332,7 +330,6 @@ def run_batch_once(
                 if profit_total is not None
                 else None,
                 roi_percent=float(roi_percent) if roi_percent is not None else None,
-                diff=float(diff) if diff is not None else None,
                 pass_filter=pass_filter,
                 checked_at=datetime.utcnow(),
             )

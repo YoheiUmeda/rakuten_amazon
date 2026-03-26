@@ -24,7 +24,6 @@ class PriceResult(BaseModel):
 
     profit_per_item: Optional[float] = None  # 利益額（注文合計）
     roi_percent: Optional[float] = None      # 利回り（％）
-    diff: Optional[float] = None             # 価格差
 
     pass_filter: bool = False                # 仕入候補フラグ
     checked_at: datetime                     # スナップショット取得日時（UTC）

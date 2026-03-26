@@ -34,7 +34,6 @@ def save_price_results(results: List[PriceResult]) -> None:
                 rakuten_price=r.rakuten_price,
                 profit_per_item=r.profit_per_item,
                 roi_percent=r.roi_percent,
-                diff=r.diff,
                 pass_filter=r.pass_filter,
                 checked_at=r.checked_at,
             )

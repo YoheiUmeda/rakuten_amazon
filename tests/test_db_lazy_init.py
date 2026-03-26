@@ -104,7 +104,6 @@ class TestSavePriceResultsWithoutDb:
             rakuten_price=3000.0,
             profit_per_item=1200.0,
             roi_percent=40.0,
-            diff=1200.0,
             pass_filter=True,
             checked_at=datetime.utcnow(),
         )
