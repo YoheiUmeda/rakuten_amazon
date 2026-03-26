@@ -298,7 +298,6 @@ def run_batch_once(
         rakuten_url = data.get("rakuten_url") or data.get("rakuten_url_1")
 
         amazon_price_raw = data.get("price")
-        rakuten_price_selected = data.get("rakuten_effective_cost_per_item_selected")
 
         # 利益（1注文あたり = SKU全体）
         profit_total = data.get("price_diff_after_point") or data.get("price_diff")
@@ -337,8 +336,8 @@ def run_batch_once(
                 amazon_price=float(amazon_price_raw)
                 if amazon_price_raw is not None
                 else None,
-                rakuten_price=float(rakuten_price_selected)
-                if rakuten_price_selected is not None
+                rakuten_price=float(rakuten_cost_total)
+                if rakuten_cost_total is not None
                 else None,
                 profit_per_item=float(profit_total)
                 if profit_total is not None

@@ -20,7 +20,7 @@ class PriceResult(BaseModel):
     rakuten_url: Optional[str] = None
 
     amazon_price: Optional[float] = None   # Amazon 側の価格（総額 or 1個あたり）
-    rakuten_price: Optional[float] = None  # 採用した楽天の 1 個あたり原価
+    rakuten_price: Optional[float] = None  # 採用した楽天の実質仕入れ額（合計、ポイント控除後）
 
     profit_per_item: Optional[float] = None  # 1個あたり利益
     roi_percent: Optional[float] = None      # 利回り（％）

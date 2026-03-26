@@ -363,3 +363,57 @@ class TestPassFilterMain:
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _main_pass_filter(data) is False
+
+
+# ─────────────────────────────────────────────
+#  rakuten_price は合計（rakuten_effective_cost_total）で保存されること
+# ─────────────────────────────────────────────
+
+class TestRakutenPriceSavedAsTotal:
+
+    def test_quantity3_total_differs_from_per_item(self):
+        """quantity=3 のとき合計と単価が異なること（修正前後で値が変わる根拠）"""
+        result = calculate_price_difference({
+            "B000TEST01": _make_calc_info(
+                total_fee=800, price=9000,
+                rakuten_cost=5000, rakuten_point=0,
+                rakuten_quantity=3, amazon_quantity=3,
+            )
+        })
+        info = result["B000TEST01"]
+        total = info["rakuten_effective_cost_total"]
+        per_item = info["rakuten_effective_cost_per_item_selected"]
+        assert total == pytest.approx(5000.0)
+        assert per_item == pytest.approx(5000.0 / 3)
+        assert total != per_item
+
+    def test_quantity1_total_equals_per_item(self):
+        """quantity=1 のとき合計と単価が一致すること（回帰）"""
+        result = calculate_price_difference({
+            "B000TEST01": _make_calc_info(
+                total_fee=800, price=5000,
+                rakuten_cost=3000, rakuten_point=0,
+                rakuten_quantity=1, amazon_quantity=1,
+            )
+        })
+        info = result["B000TEST01"]
+        assert info["rakuten_effective_cost_total"] == pytest.approx(
+            info["rakuten_effective_cost_per_item_selected"]
+        )
+
+    def test_batch_runner_saves_total_as_rakuten_price(self):
+        """batch_runner の保存ロジック写し: quantity=3 のとき rakuten_price = 合計（5000）になること"""
+        # batch_runner は rakuten_cost_total = data.get("rakuten_effective_cost_total") を参照する
+        result = calculate_price_difference({
+            "B000TEST01": _make_calc_info(
+                total_fee=800, price=9000,
+                rakuten_cost=5000, rakuten_point=0,
+                rakuten_quantity=3, amazon_quantity=3,
+            )
+        })
+        info = result["B000TEST01"]
+        # batch_runner L307-341 の写し
+        rakuten_cost_total = info.get("rakuten_effective_cost_total")
+        rakuten_price = float(rakuten_cost_total) if rakuten_cost_total is not None else None
+        # 合計（5000）が保存される。単価（≈1667）ではない。
+        assert rakuten_price == pytest.approx(5000.0)
