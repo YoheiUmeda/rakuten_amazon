@@ -1,0 +1,11 @@
+{
+  "goal": "dev_orchestrator MVP 追加（untracked判定完全化含む）",
+  "targets": [
+    "scripts/dev_orchestrator.py",
+    "orchestrator_tasks/example_task.json",
+    "README_orchestrator.md"
+  ],
+  "pytest_commands": [],
+  "commit_message": "feat: add dev_orchestrator MVP",
+  "allow_push": true
+}
