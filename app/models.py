@@ -40,7 +40,7 @@ class PriceSnapshot(Base):
     rakuten_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     # 粗利・ROI・フィルタフラグ
-    profit_per_item: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    profit_per_item: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 利益額（注文合計）
     roi_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     pass_filter: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
