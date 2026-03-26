@@ -1,0 +1,12 @@
+{
+  "goal": "PriceItem.rakuten_price コメント追加（合計前提を明示）",
+  "targets": [
+    "app/schemas.py",
+    "orchestrator_tasks/rakuten_price_total.json"
+  ],
+  "pytest_commands": [
+    ".\\venv\\Scripts\\pytest.exe tests\\test_fee_none_propagation.py -v --tb=short"
+  ],
+  "commit_message": "docs: clarify PriceItem.rakuten_price is order total",
+  "allow_push": true
+}

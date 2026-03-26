@@ -50,7 +50,7 @@ class PriceItem(BaseModel):
     title: str
 
     amazon_price: Optional[float] = None
-    rakuten_price: Optional[float] = None
+    rakuten_price: Optional[float] = None  # 採用した楽天の実質仕入れ額（合計、ポイント控除後）
 
     profit_per_item: Optional[float] = None  # 利益額（注文合計）
     roi_percent: Optional[float] = None
