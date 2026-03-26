@@ -305,14 +305,6 @@ def run_batch_once(
         # 利益率(%)
         rakuten_cost_total = data.get("rakuten_effective_cost_total")
         roi_percent = data.get("roi_percent")
-        if roi_percent is None:
-            profit_rate = data.get("profit_rate")
-            if profit_rate is not None:
-                roi_percent = float(profit_rate) * 100.0
-            elif profit_total is not None and rakuten_cost_total:
-                base = float(rakuten_cost_total)
-                if base > 0:
-                    roi_percent = float(profit_total) / base * 100.0
 
         diff = data.get("profit_total")
 

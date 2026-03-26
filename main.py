@@ -165,17 +165,7 @@ def worker(query: str, root: tk.Tk, status_label: tk.Label, btn_run: tk.Button) 
 
             # --- 利益・ROI（1注文あたり） ---
             profit_total = data.get("profit_total")
-
-            roi_ratio = data.get("roi_total")
-            if roi_ratio is None and profit_total is not None and rakuten_price_total:
-                try:
-                    base = float(rakuten_price_total)
-                    if base > 0:
-                        roi_ratio = float(profit_total) / base
-                except Exception:
-                    roi_ratio = None
-
-            roi_percent = roi_ratio * 100.0 if roi_ratio is not None else None
+            roi_percent = data.get("roi_percent")
 
             # --- フィルタ判定（1注文あたりベース） ---
             pass_filter = (

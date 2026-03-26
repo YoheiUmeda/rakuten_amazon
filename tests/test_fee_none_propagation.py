@@ -27,17 +27,7 @@ _MIN_ROI_PERCENT = 15.0
 def _batch_runner_pass_filter(data: dict) -> bool:
     """batch_runner.py の pass_filter 判定ロジックの写し（1注文あたりベース）"""
     profit_total = data.get("profit_total")
-
-    rakuten_cost_total = data.get("rakuten_effective_cost_total")
     roi_percent = data.get("roi_percent")
-    if roi_percent is None:
-        profit_rate = data.get("profit_rate")
-        if profit_rate is not None:
-            roi_percent = float(profit_rate) * 100.0
-        elif profit_total is not None and rakuten_cost_total:
-            base = float(rakuten_cost_total)
-            if base > 0:
-                roi_percent = float(profit_total) / base * 100.0
 
     return (
         profit_total is not None
@@ -48,21 +38,9 @@ def _batch_runner_pass_filter(data: dict) -> bool:
 
 
 def _main_pass_filter(data: dict) -> bool:
-    """main.py の pass_filter 判定ロジックの写し（L167-189）"""
-    rakuten_price_total = data.get("rakuten_effective_cost_total")
-
+    """main.py の pass_filter 判定ロジックの写し"""
     profit_total = data.get("profit_total")
-
-    roi_ratio = data.get("roi_total")
-    if roi_ratio is None and profit_total is not None and rakuten_price_total:
-        try:
-            base = float(rakuten_price_total)
-            if base > 0:
-                roi_ratio = float(profit_total) / base
-        except Exception:
-            roi_ratio = None
-
-    roi_percent = roi_ratio * 100.0 if roi_ratio is not None else None
+    roi_percent = data.get("roi_percent")
 
     return (
         profit_total is not None
@@ -279,7 +257,7 @@ class TestPassFilterBatchRunner:
         # profit=1200, rak_cost=3000 → ROI=40% (>15%)
         data = {
             "profit_total": 1200.0,
-            "rakuten_effective_cost_total": 3000.0,
+            "roi_percent": 40.0,
         }
         assert _batch_runner_pass_filter(data) is True
 
@@ -287,16 +265,15 @@ class TestPassFilterBatchRunner:
         """利益が MIN_PROFIT_YEN(700円) 未満のとき pass_filter=False"""
         data = {
             "profit_total": 500.0,   # < 700
-            "rakuten_effective_cost_total": 3000.0,
+            "roi_percent": 40.0,
         }
         assert _batch_runner_pass_filter(data) is False
 
     def test_roi_below_min_is_false(self):
         """ROI が MIN_ROI_PERCENT(15%) 未満のとき pass_filter=False"""
-        # profit=200, rak_cost=3000 → ROI=6.7% < 15%
         data = {
-            "profit_total": 200.0,
-            "rakuten_effective_cost_total": 3000.0,
+            "profit_total": 1200.0,
+            "roi_percent": 6.7,   # < 15%
         }
         assert _batch_runner_pass_filter(data) is False
 
@@ -329,10 +306,10 @@ class TestPassFilterMain:
 
     def test_normal_profit_above_threshold_is_true(self):
         """利益・ROI が閾値以上のとき pass_filter=True になること"""
-        # profit=1200, rak_cost=3000 → ROI=40% (>15%)
+        # profit=1200, roi=40% (>15%)
         data = {
             "profit_total": 1200.0,
-            "rakuten_effective_cost_total": 3000.0,
+            "roi_percent": 40.0,
         }
         assert _main_pass_filter(data) is True
 
@@ -340,16 +317,15 @@ class TestPassFilterMain:
         """利益が MIN_PROFIT_YEN(700円) 未満のとき pass_filter=False"""
         data = {
             "profit_total": 500.0,   # < 700
-            "rakuten_effective_cost_total": 3000.0,
+            "roi_percent": 40.0,
         }
         assert _main_pass_filter(data) is False
 
     def test_roi_below_min_is_false(self):
         """ROI が MIN_ROI_PERCENT(15%) 未満のとき pass_filter=False"""
-        # profit=200, rak_cost=3000 → ROI=6.7% < 15%
         data = {
-            "profit_total": 200.0,
-            "rakuten_effective_cost_total": 3000.0,
+            "profit_total": 1200.0,
+            "roi_percent": 6.7,   # < 15%
         }
         assert _main_pass_filter(data) is False
 
