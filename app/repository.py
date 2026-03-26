@@ -1,14 +1,11 @@
 # app/repository.py
 from __future__ import annotations
 
-from typing import List, Tuple, Optional
-
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from typing import List
 
 from .db import get_session
 from .models import PriceSnapshot
-from .schemas import PriceResult, PriceSearchCondition, PriceItem
+from .schemas import PriceResult
 
 
 def save_price_results(results: List[PriceResult]) -> None:
@@ -41,82 +38,3 @@ def save_price_results(results: List[PriceResult]) -> None:
 
         db.add_all(objects)
         db.commit()
-
-
-def search_prices(
-    condition: PriceSearchCondition,
-    db: Optional[Session] = None,
-) -> Tuple[List[PriceItem], int]:
-    """
-    DB から PriceSnapshot を検索して、API 用の PriceItem リスト＋総件数を返す。
-
-    - keyword: ASIN or タイトル部分一致
-    - min_profit: 最低利益（円）
-    - min_roi: 最低ROI（％）
-    - limit: 最大件数
-    """
-    if db is None:
-        with get_session() as _db:
-            return _search_prices_impl(condition, _db)
-    return _search_prices_impl(condition, db)
-
-
-def _search_prices_impl(
-    condition: PriceSearchCondition,
-    db: Session,
-) -> Tuple[List[PriceItem], int]:
-    q = db.query(PriceSnapshot)
-
-    # ▼ キーワード（ASIN / タイトル の部分一致）
-    if condition.keyword:
-        kw = f"%{condition.keyword}%"
-        q = q.filter(
-            or_(
-                PriceSnapshot.asin.ilike(kw),
-                PriceSnapshot.title.ilike(kw),
-            )
-        )
-
-    # ▼ 最低利益（円）
-    if condition.min_profit is not None:
-        q = q.filter(PriceSnapshot.profit_per_item >= condition.min_profit)
-
-    # ▼ 最低 ROI（％）
-    if condition.min_roi is not None:
-        q = q.filter(PriceSnapshot.roi_percent >= condition.min_roi)
-
-    # ▼ 件数カウント（limit かける前）
-    total = q.count()
-
-    # ▼ 並び順
-    #   1. pass_filter=True を優先
-    #   2. 利益が大きい順
-    #   3. 新しい順
-    q = (
-        q.order_by(
-            PriceSnapshot.pass_filter.desc(),
-            PriceSnapshot.profit_per_item.desc(),
-            PriceSnapshot.checked_at.desc(),
-        )
-        .limit(condition.limit)
-    )
-
-    rows: List[PriceSnapshot] = q.all()
-
-    # ▼ API 用スキーマに詰め替え
-    items: List[PriceItem] = [
-        PriceItem(
-            asin=row.asin,
-            title=row.title,
-            amazon_price=row.amazon_price,
-            rakuten_price=row.rakuten_price,
-            profit_per_item=row.profit_per_item,
-            roi_percent=row.roi_percent,
-            amazon_url=row.amazon_url,
-            rakuten_url=row.rakuten_url,
-            checked_at=row.checked_at,
-        )
-        for row in rows
-    ]
-
-    return items, total
