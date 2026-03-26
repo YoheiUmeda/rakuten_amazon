@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -49,6 +50,14 @@ def search_prices(
 
     if cond.min_roi is not None:
         q = q.filter(PriceSnapshot.roi_percent >= cond.min_roi)
+
+    # ASIN ごとに最新1件だけ残す（id が最大 = 最後に挿入された行）
+    latest_sq = (
+        db.query(func.max(PriceSnapshot.id).label("max_id"))
+        .group_by(PriceSnapshot.asin)
+        .subquery()
+    )
+    q = q.join(latest_sq, PriceSnapshot.id == latest_sq.c.max_id)
 
     # 件数（limit をかける前の総件数）
     total = q.count()
