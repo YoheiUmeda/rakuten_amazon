@@ -32,8 +32,6 @@ class PriceSnapshot(Base):
     # 価格情報
     amazon_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     rakuten_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    diff: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
     # 表示用メタ情報
     title: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     amazon_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)

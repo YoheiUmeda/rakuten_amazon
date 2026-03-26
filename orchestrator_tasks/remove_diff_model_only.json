@@ -1,0 +1,12 @@
+{
+  "goal": "dead な diff カラム定義を ORM モデルから削除（DB カラムは保持）",
+  "targets": [
+    "app/models.py",
+    "orchestrator_tasks/remove_diff_model_only.json"
+  ],
+  "pytest_commands": [
+    ".\\venv\\Scripts\\pytest.exe tests\\test_db_lazy_init.py -v --tb=short"
+  ],
+  "commit_message": "refactor: remove dead diff column from ORM model",
+  "allow_push": true
+}
