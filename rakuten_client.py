@@ -609,7 +609,7 @@ def extract_product_code_candidates(title):
 
 def search_rakuten_product_api(code):
     app_id = os.getenv('RAKUTEN_API_ID')
-    sleep_time = int(os.getenv('RAKUTEN_SLEEP_TIME', 1))
+    sleep_time = float(os.getenv('RAKUTEN_SLEEP_TIME', 1))
 
     url = "https://app.rakuten.co.jp/services/api/Product/Search/20170426"
     params = {
@@ -618,7 +618,7 @@ def search_rakuten_product_api(code):
         'hits': 10,
     }
     try:
-        res = requests.get(url, params=params)
+        res = requests.get(url, params=params, timeout=_RAKUTEN_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             return data.get('Products', [])
@@ -631,7 +631,7 @@ def search_rakuten_product_api(code):
 
 def search_ichiba_from_product(jan=None, code=None, product_id=None):
     app_id = os.getenv('RAKUTEN_API_ID')
-    sleep_time = int(os.getenv('RAKUTEN_SLEEP_TIME', 1))
+    sleep_time = float(os.getenv('RAKUTEN_SLEEP_TIME', 1))
 
     url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706"
     params = {
@@ -650,7 +650,7 @@ def search_ichiba_from_product(jan=None, code=None, product_id=None):
     else:
         return []
     try:
-        res = requests.get(url, params=params)
+        res = requests.get(url, params=params, timeout=_RAKUTEN_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             return data.get('Items', [])
