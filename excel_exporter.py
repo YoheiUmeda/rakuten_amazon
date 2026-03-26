@@ -60,7 +60,7 @@ HEADER_MAP_JA: Dict[str, str] = {
     "price": "Amazon価格",
     "shipping": "Amazon送料",
     "amazon_price_per_item": "Amazon単価",
-    "amazon_received_per_item": "Amazon受取額/個",
+    "amazon_received_per_item": "Amazon受取額",
     "rakuten_effective_cost_per_item_selected": "楽天単価(採用)",
     "rakuten_effective_cost_total": "楽天仕入合計(参考)",
     "profit_per_item": "利益額（注文合計）",

@@ -19,7 +19,7 @@ class PriceResult(BaseModel):
     amazon_url: Optional[str] = None
     rakuten_url: Optional[str] = None
 
-    amazon_price: Optional[float] = None   # Amazon 側の価格（総額 or 1個あたり）
+    amazon_price: Optional[float] = None   # Amazon 側の価格（SP-API ListingPrice、注文合計額）
     rakuten_price: Optional[float] = None  # 採用した楽天の実質仕入れ額（合計、ポイント控除後）
 
     profit_per_item: Optional[float] = None  # 1注文あたり利益（SKU合計）
@@ -52,7 +52,7 @@ class PriceItem(BaseModel):
     amazon_price: Optional[float] = None
     rakuten_price: Optional[float] = None
 
-    profit_per_item: Optional[float] = None
+    profit_per_item: Optional[float] = None  # 1注文あたり利益（SKU合計）
     roi_percent: Optional[float] = None
 
     checked_at: datetime                # いつチェックしたか
