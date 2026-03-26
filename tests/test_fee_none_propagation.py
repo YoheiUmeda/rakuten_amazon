@@ -26,7 +26,7 @@ _MIN_ROI_PERCENT = 15.0
 
 def _batch_runner_pass_filter(data: dict) -> bool:
     """batch_runner.py の pass_filter 判定ロジックの写し（1注文あたりベース）"""
-    profit_total = data.get("price_diff_after_point") or data.get("price_diff")
+    profit_total = data.get("price_diff")
 
     rakuten_cost_total = data.get("rakuten_effective_cost_total")
     roi_percent = data.get("roi_percent")
@@ -53,7 +53,7 @@ def _main_pass_filter(data: dict) -> bool:
 
     profit_total = data.get("profit_total")
     if profit_total is None:
-        profit_total = data.get("price_diff_after_point") or data.get("price_diff")
+        profit_total = data.get("price_diff")
 
     roi_ratio = data.get("roi_total")
     if roi_ratio is None and profit_total is not None and rakuten_price_total:
@@ -155,7 +155,6 @@ class TestCalculatePriceDifference:
         assert info["profit_per_item"] is None
         assert info["profit_rate"] is None
         assert info["price_diff"] is None
-        assert info["price_diff_after_point"] is None
         assert info["amazon_received_per_item"] is None
 
     def test_fee_none_preserves_price_per_item(self):
@@ -260,19 +259,16 @@ class TestPassFilterBatchRunner:
 
     def test_fee_none_pass_filter_is_false(self):
         """fee=None 由来で price_diff が None のとき pass_filter=False になること"""
-        # calculate_price_difference が fee=None で出力する data を再現
         data = {
-            "price_diff_after_point": None,   # fee依存 → None
-            "price_diff": None,               # fee依存 → None
-            "profit_rate": None,              # fee依存 → None
-            "rakuten_effective_cost_total": 3000.0,  # 楽天データは保持
+            "price_diff": None,
+            "profit_rate": None,
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
 
-    def test_fee_none_both_diffs_none_is_false(self):
-        """price_diff_after_point も price_diff も None のとき profit_total=None で False"""
+    def test_fee_none_price_diff_none_is_false(self):
+        """price_diff=None のとき profit_total=None で False"""
         data = {
-            "price_diff_after_point": None,
             "price_diff": None,
             "rakuten_effective_cost_total": 3000.0,
         }
@@ -284,7 +280,7 @@ class TestPassFilterBatchRunner:
         """利益・ROI が閾値以上のとき pass_filter=True になること"""
         # profit=1200, rak_cost=3000 → ROI=40% (>15%)
         data = {
-            "price_diff_after_point": 1200.0,
+            "price_diff": 1200.0,
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is True
@@ -292,7 +288,7 @@ class TestPassFilterBatchRunner:
     def test_profit_below_min_is_false(self):
         """利益が MIN_PROFIT_YEN(700円) 未満のとき pass_filter=False"""
         data = {
-            "price_diff_after_point": 500.0,   # < 700
+            "price_diff": 500.0,   # < 700
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
@@ -301,7 +297,7 @@ class TestPassFilterBatchRunner:
         """ROI が MIN_ROI_PERCENT(15%) 未満のとき pass_filter=False"""
         # profit=200, rak_cost=3000 → ROI=6.7% < 15%
         data = {
-            "price_diff_after_point": 200.0,
+            "price_diff": 200.0,
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _batch_runner_pass_filter(data) is False
@@ -317,20 +313,15 @@ class TestPassFilterMain:
 
     def test_fee_none_pass_filter_is_false(self):
         """fee=None 由来で price_diff が None のとき pass_filter=False になること"""
-        # calculate_price_difference が fee=None で出力する data を再現
         data = {
-            "price_diff_after_point": None,   # fee依存 → None
-            "price_diff": None,               # fee依存 → None
-            "rakuten_effective_cost_total": 3000.0,  # 楽天データは保持
+            "price_diff": None,
+            "rakuten_effective_cost_total": 3000.0,
         }
         assert _main_pass_filter(data) is False
 
-    def test_fee_none_both_fallbacks_none(self):
-        """price_diff_after_point も price_diff も None のとき profit_total=None で False"""
-        # main.py: profit_total = data.get("price_diff_after_point") or data.get("price_diff")
-        # None or None = None → pass_filter=False
+    def test_fee_none_price_diff_none_is_false(self):
+        """price_diff=None のとき profit_total=None で False"""
         data = {
-            "price_diff_after_point": None,
             "price_diff": None,
             "rakuten_effective_cost_total": 3000.0,
         }
@@ -342,7 +333,7 @@ class TestPassFilterMain:
         """利益・ROI が閾値以上のとき pass_filter=True になること"""
         # profit=1200, rak_cost=3000 → ROI=40% (>15%)
         data = {
-            "price_diff_after_point": 1200.0,
+            "price_diff": 1200.0,
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _main_pass_filter(data) is True
@@ -350,7 +341,7 @@ class TestPassFilterMain:
     def test_profit_below_min_is_false(self):
         """利益が MIN_PROFIT_YEN(700円) 未満のとき pass_filter=False"""
         data = {
-            "price_diff_after_point": 500.0,   # < 700
+            "price_diff": 500.0,   # < 700
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _main_pass_filter(data) is False
@@ -359,7 +350,7 @@ class TestPassFilterMain:
         """ROI が MIN_ROI_PERCENT(15%) 未満のとき pass_filter=False"""
         # profit=200, rak_cost=3000 → ROI=6.7% < 15%
         data = {
-            "price_diff_after_point": 200.0,
+            "price_diff": 200.0,
             "rakuten_effective_cost_total": 3000.0,
         }
         assert _main_pass_filter(data) is False

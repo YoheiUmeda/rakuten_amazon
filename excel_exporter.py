@@ -28,8 +28,7 @@ PREFERRED_ORDER: List[str] = [
     "rakuten_effective_cost_per_item_selected",  # 選択した仕入れ単価
     "profit_per_item",              # 1個あたり利益
     "roi_percent",                  # 利益率（％）
-    "price_diff_after_point",       # ポイント込み差額
-    "price_diff",                   # 純粋な価格差
+    "price_diff",                   # 利益額（ポイント・手数料控除後）
 
     # 動き・数量まわり
     "estimated_monthly_sold_30",
@@ -66,8 +65,7 @@ HEADER_MAP_JA: Dict[str, str] = {
     "rakuten_effective_cost_total": "楽天仕入合計(参考)",
     "profit_per_item": "利益/個",
     "roi_percent": "利益率(%)",
-    "price_diff_after_point": "差額(ポイント込)",
-    "price_diff": "差額(ポイント除外)",
+    "price_diff": "利益額",
 
     "estimated_monthly_sold_30": "推定月販(30日)",
     "estimated_monthly_sold": "推定月販",

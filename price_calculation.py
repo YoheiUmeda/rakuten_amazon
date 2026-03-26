@@ -100,7 +100,6 @@ def calculate_price_difference(
                     "rakuten_effective_cost_total": rak_total,
                     "rakuten_effective_cost_per_item_selected": rak_per_item,
                     "price_diff": None,
-                    "price_diff_after_point": None,
                     "profit_per_item": None,
                     "profit_rate": None,
                 }
@@ -125,7 +124,6 @@ def calculate_price_difference(
                     "rakuten_effective_cost_total": None,
                     "rakuten_effective_cost_per_item_selected": None,
                     "price_diff": None,
-                    "price_diff_after_point": None,
                     "profit_per_item": None,
                     "profit_rate": None,
                 }
@@ -155,7 +153,6 @@ def calculate_price_difference(
                 "rakuten_effective_cost_total": rak_total,
                 "rakuten_effective_cost_per_item_selected": rak_per_item,
                 "price_diff": price_diff,
-                "price_diff_after_point": price_diff,
                 "profit_per_item": profit_per_item,
                 "profit_rate": roi,
             }

@@ -300,7 +300,7 @@ def run_batch_once(
         amazon_price_raw = data.get("price")
 
         # 利益（1注文あたり = SKU全体）
-        profit_total = data.get("price_diff_after_point") or data.get("price_diff")
+        profit_total = data.get("price_diff")
 
         # 利益率(%)
         rakuten_cost_total = data.get("rakuten_effective_cost_total")
@@ -314,10 +314,7 @@ def run_batch_once(
                 if base > 0:
                     roi_percent = float(profit_total) / base * 100.0
 
-        # 差額（ポイント考慮後 → なければ通常差額）
-        diff = data.get("price_diff_after_point")
-        if diff is None:
-            diff = data.get("price_diff")
+        diff = data.get("price_diff")
 
         # フィルタ条件（1注文あたりベース）
         pass_filter = (
