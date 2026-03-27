@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -42,7 +42,13 @@ def search_prices(
 
     # pass_filter フラグでの絞り込み
     if cond.only_pass_filter:
-        q = q.filter(PriceSnapshot.pass_filter.is_(True))
+        if cond.pass_min_profit is not None or cond.pass_min_roi is not None:
+            if cond.pass_min_profit is not None:
+                q = q.filter(PriceSnapshot.profit_per_item >= cond.pass_min_profit)
+            if cond.pass_min_roi is not None:
+                q = q.filter(PriceSnapshot.roi_percent >= cond.pass_min_roi)
+        else:
+            q = q.filter(PriceSnapshot.pass_filter.is_(True))
 
     # 利益／ROI 下限
     if cond.min_profit is not None:
@@ -63,17 +69,41 @@ def search_prices(
     total = q.count()
 
     # 並び順：仕入候補を先頭に、その中で利益の大きい順、同じなら新しい順
-    q = q.order_by(
-        PriceSnapshot.pass_filter.desc().nullslast(),
-        PriceSnapshot.profit_per_item.desc().nullslast(),
-        PriceSnapshot.checked_at.desc(),
-    )
+    if cond.pass_min_profit is not None or cond.pass_min_roi is not None:
+        _conds = []
+        if cond.pass_min_profit is not None:
+            _conds.append(PriceSnapshot.profit_per_item >= cond.pass_min_profit)
+        if cond.pass_min_roi is not None:
+            _conds.append(PriceSnapshot.roi_percent >= cond.pass_min_roi)
+        _pass_expr = case((and_(*_conds), 1), else_=0)
+        q = q.order_by(
+            _pass_expr.desc(),
+            PriceSnapshot.profit_per_item.desc().nullslast(),
+            PriceSnapshot.checked_at.desc(),
+        )
+    else:
+        q = q.order_by(
+            PriceSnapshot.pass_filter.desc().nullslast(),
+            PriceSnapshot.profit_per_item.desc().nullslast(),
+            PriceSnapshot.checked_at.desc(),
+        )
 
     # limit が指定されていれば適用（schemas のデフォルトを 1000 にしておくと安心）
     if cond.limit:
         q = q.limit(cond.limit)
 
     rows: List[PriceSnapshot] = q.all()
+
+    def _pass(r: PriceSnapshot):
+        if cond.pass_min_profit is None and cond.pass_min_roi is None:
+            return r.pass_filter
+        profit_ok = cond.pass_min_profit is None or (
+            r.profit_per_item is not None and r.profit_per_item >= cond.pass_min_profit
+        )
+        roi_ok = cond.pass_min_roi is None or (
+            r.roi_percent is not None and r.roi_percent >= cond.pass_min_roi
+        )
+        return profit_ok and roi_ok
 
     items: List[PriceItem] = [
         PriceItem(
@@ -83,7 +113,7 @@ def search_prices(
             rakuten_price=r.rakuten_price,
             profit_per_item=r.profit_per_item,
             roi_percent=r.roi_percent,
-            pass_filter=r.pass_filter,
+            pass_filter=_pass(r),
             checked_at=r.checked_at,
             amazon_url=r.amazon_url,
             rakuten_url=r.rakuten_url,

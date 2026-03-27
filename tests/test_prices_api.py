@@ -106,3 +106,84 @@ class TestPassFilterSortPriority:
 
         assert result.items[0].asin == "B006"   # pass_filter=True が先頭
         assert result.items[1].asin == "B005"
+
+
+class TestDynamicPassFilter:
+
+    def test_pass_min_profit_overrides_db_flag(self, db):
+        """pass_min_profit 指定時は DB の pass_filter を無視して動的判定する"""
+        db.add_all([
+            PriceSnapshot(asin="C001", title="rich_rejected",
+                          profit_per_item=1500.0, roi_percent=20.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="C002", title="poor_candidate",
+                          profit_per_item=300.0, roi_percent=5.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(PriceSearchCondition(pass_min_profit=1000.0), db=db)
+
+        by_asin = {item.asin: item for item in result.items}
+        assert by_asin["C001"].pass_filter is True   # DB=False だが動的=True
+        assert by_asin["C002"].pass_filter is False  # DB=True  だが動的=False
+
+    def test_only_pass_filter_uses_dynamic_threshold(self, db):
+        """only_pass_filter=True + pass_min_profit → 動的判定で絞り込む"""
+        db.add_all([
+            PriceSnapshot(asin="C003", title="rich",
+                          profit_per_item=1500.0, roi_percent=20.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="C004", title="poor",
+                          profit_per_item=300.0, roi_percent=5.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(
+            PriceSearchCondition(pass_min_profit=1000.0, only_pass_filter=True), db=db
+        )
+
+        assert result.total == 1
+        assert result.items[0].asin == "C003"
+
+    def test_none_profit_fails_dynamic_pass(self, db):
+        """profit_per_item が None の行は pass_min_profit 指定時に動的判定で不合格"""
+        db.add_all([
+            PriceSnapshot(asin="C005", title="no_profit",
+                          profit_per_item=None, roi_percent=20.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(PriceSearchCondition(pass_min_profit=1.0), db=db)
+
+        assert result.items[0].pass_filter is False
+
+    def test_none_profit_excluded_by_only_pass_filter(self, db):
+        """profit_per_item が None の行は only_pass_filter=True + 閾値指定時に除外される"""
+        db.add_all([
+            PriceSnapshot(asin="C006", title="no_profit",
+                          profit_per_item=None, roi_percent=20.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(
+            PriceSearchCondition(pass_min_profit=1.0, only_pass_filter=True), db=db
+        )
+
+        assert result.total == 0
+
+    def test_none_roi_fails_dynamic_pass(self, db):
+        """roi_percent が None の行は pass_min_roi 指定時に動的判定で不合格"""
+        db.add_all([
+            PriceSnapshot(asin="C007", title="no_roi",
+                          profit_per_item=1500.0, roi_percent=None,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(PriceSearchCondition(pass_min_roi=10.0), db=db)
+
+        assert result.items[0].pass_filter is False

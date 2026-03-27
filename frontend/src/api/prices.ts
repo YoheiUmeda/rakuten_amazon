@@ -7,6 +7,8 @@ export interface PriceSearchCondition {
   min_roi?: number;
   limit?: number;
   only_pass_filter?: boolean; // pass_filter=true だけ欲しいとき用
+  pass_min_profit?: number;   // 動的 pass 判定：最低利益
+  pass_min_roi?: number;      // 動的 pass 判定：最低ROI
 }
 
 // 🔍 1件分の結果

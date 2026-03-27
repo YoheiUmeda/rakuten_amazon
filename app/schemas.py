@@ -43,6 +43,8 @@ class PriceSearchCondition(BaseModel):
     min_roi: Optional[float] = None     # 最低 ROI（％）
     limit: int = 1000                   # ★ デフォルト 1000件
     only_pass_filter: bool = False      # True なら pass_filter=True のみ
+    pass_min_profit: Optional[float] = None  # 動的 pass 判定：最低利益（絞り込みにも使用）
+    pass_min_roi: Optional[float] = None     # 動的 pass 判定：最低ROI（絞り込みにも使用）
 
 class PriceItem(BaseModel):
     asin: str

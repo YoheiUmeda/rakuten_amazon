@@ -59,7 +59,7 @@ const PriceSearchPage: React.FC = () => {
   };
 
   const handleChangeNumber =
-    (field: "min_profit" | "min_roi" | "limit") =>
+    (field: "min_profit" | "min_roi" | "limit" | "pass_min_profit" | "pass_min_roi") =>
     (e: React.ChangeEvent<HTMLInputElement>): void => {
       const value = e.target.value;
       setCondition((prev) => ({
@@ -110,6 +110,8 @@ const PriceSearchPage: React.FC = () => {
         min_roi: condition.min_roi,
         limit: condition.limit,
         only_pass_filter: condition.only_pass_filter,
+        pass_min_profit: condition.pass_min_profit,
+        pass_min_roi: condition.pass_min_roi,
       };
 
       const [list, summaryRes] = await Promise.all([
@@ -557,6 +559,66 @@ const PriceSearchPage: React.FC = () => {
             </div>
           </div>
 
+          {/* 4段目：動的 pass 判定閾値 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "120px 1fr 120px 1fr",
+              columnGap: 10,
+              rowGap: 6,
+              alignItems: "center",
+              marginBottom: 10,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                color: "#4b5563",
+                textAlign: "right",
+                paddingRight: 6,
+              }}
+            >
+              pass利益（円）:
+            </div>
+            <div>
+              <input
+                type="number"
+                value={condition.pass_min_profit ?? ""}
+                onChange={handleChangeNumber("pass_min_profit")}
+                style={{
+                  ...filterInputStyle,
+                  maxWidth: 120,
+                  marginRight: 4,
+                }}
+              />
+              <span style={{ fontSize: 12, color: "#6b7280" }}>〜</span>
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: "#4b5563",
+                textAlign: "right",
+                paddingRight: 6,
+              }}
+            >
+              pass利益率（%）:
+            </div>
+            <div>
+              <input
+                type="number"
+                value={condition.pass_min_roi ?? ""}
+                onChange={handleChangeNumber("pass_min_roi")}
+                style={{
+                  ...filterInputStyle,
+                  maxWidth: 120,
+                  marginRight: 4,
+                }}
+              />
+              <span style={{ fontSize: 12, color: "#6b7280" }}>〜</span>
+            </div>
+          </div>
+
           {/* ボタン行 */}
           <div
             style={{
@@ -575,6 +637,8 @@ const PriceSearchPage: React.FC = () => {
                   min_roi: undefined,
                   limit: 50,
                   only_pass_filter: false,
+                  pass_min_profit: undefined,
+                  pass_min_roi: undefined,
                 })
               }
               style={{
