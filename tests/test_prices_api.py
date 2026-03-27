@@ -67,3 +67,22 @@ class TestLatestSnapshotPerAsin:
         result = search_prices(PriceSearchCondition(min_profit=500.0), db=db)
 
         assert result.total == 0
+
+
+class TestPassFilterInResponse:
+
+    def test_pass_filter_is_returned_in_items(self, db):
+        """レスポンスの各 item に pass_filter が含まれること"""
+        db.add_all([
+            PriceSnapshot(asin="B003", title="candidate", profit_per_item=1000.0,
+                          roi_percent=30.0, pass_filter=True,  checked_at=T_NEW),
+            PriceSnapshot(asin="B004", title="rejected",  profit_per_item=100.0,
+                          roi_percent=5.0,  pass_filter=False, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(PriceSearchCondition(), db=db)
+
+        by_asin = {item.asin: item for item in result.items}
+        assert by_asin["B003"].pass_filter is True
+        assert by_asin["B004"].pass_filter is False

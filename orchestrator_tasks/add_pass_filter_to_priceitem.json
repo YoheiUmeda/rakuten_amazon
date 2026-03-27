@@ -1,0 +1,14 @@
+{
+  "goal": "PriceItem / API レスポンスに pass_filter フィールドを追加",
+  "targets": [
+    "app/schemas.py",
+    "app/api/prices.py",
+    "tests/test_prices_api.py",
+    "orchestrator_tasks/add_pass_filter_to_priceitem.json"
+  ],
+  "pytest_commands": [
+    ".\\venv\\Scripts\\pytest.exe tests\\test_prices_api.py -v --tb=short"
+  ],
+  "commit_message": "feat: expose pass_filter in price items",
+  "allow_push": true
+}

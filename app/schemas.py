@@ -54,6 +54,8 @@ class PriceItem(BaseModel):
     profit_per_item: Optional[float] = None  # 利益額（注文合計）
     roi_percent: Optional[float] = None
 
+    pass_filter: Optional[bool] = None   # 仕入候補フラグ
+
     checked_at: datetime                # いつチェックしたか
 
     amazon_url: Optional[str] = None

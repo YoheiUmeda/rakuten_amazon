@@ -82,6 +82,7 @@ def search_prices(
             rakuten_price=r.rakuten_price,
             profit_per_item=r.profit_per_item,
             roi_percent=r.roi_percent,
+            pass_filter=r.pass_filter,
             checked_at=r.checked_at,
             amazon_url=r.amazon_url,
             rakuten_url=r.rakuten_url,
