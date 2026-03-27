@@ -892,12 +892,10 @@ const PriceSearchPage: React.FC = () => {
                     style={{
                       cursor: "pointer",
                       borderBottom: "1px solid #f3f4f6",
-                      background: readAsins.has(item.asin)
-                        ? "#f3f4f6"
-                        : item.pass_filter
-                          ? "#f0fdf4"
-                          : index % 2 === 0 ? "#ffffff" : "#f9fafb",
-                      opacity: readAsins.has(item.asin) ? 0.6 : 1,
+                      background: item.pass_filter
+                        ? "#f0fdf4"
+                        : index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                      opacity: readAsins.has(item.asin) ? 0.75 : 1,
                     }}
                   >
                     <td style={tdStyle}>{item.asin}</td>
