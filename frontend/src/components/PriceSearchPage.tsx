@@ -454,7 +454,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              利益（円）:
+              利益（絞込）:
             </div>
             <div>
               <input
@@ -478,7 +478,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              利益率（%）:
+              ROI（絞込）:
             </div>
             <div>
               <input
@@ -578,7 +578,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              pass利益（円）:
+              利益（pass判定）:
             </div>
             <div>
               <input
@@ -602,7 +602,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              pass利益率（%）:
+              ROI（pass判定）:
             </div>
             <div>
               <input

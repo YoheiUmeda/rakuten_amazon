@@ -187,3 +187,46 @@ class TestDynamicPassFilter:
         result = search_prices(PriceSearchCondition(pass_min_roi=10.0), db=db)
 
         assert result.items[0].pass_filter is False
+
+    def test_only_pass_filter_uses_pass_min_roi(self, db):
+        """only_pass_filter=True + pass_min_roi → ROI閾値で絞り込む"""
+        db.add_all([
+            PriceSnapshot(asin="C008", title="high_roi",
+                          profit_per_item=500.0, roi_percent=20.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="C009", title="low_roi",
+                          profit_per_item=2000.0, roi_percent=5.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(
+            PriceSearchCondition(pass_min_roi=10.0, only_pass_filter=True), db=db
+        )
+
+        assert result.total == 1
+        assert result.items[0].asin == "C008"
+
+    def test_pass_min_profit_and_roi_and_condition(self, db):
+        """pass_min_profit + pass_min_roi のAND条件: 両方満たさないと不合格"""
+        db.add_all([
+            PriceSnapshot(asin="C010", title="both_ok",
+                          profit_per_item=1500.0, roi_percent=20.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="C011", title="profit_only",
+                          profit_per_item=1500.0, roi_percent=5.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="C012", title="roi_only",
+                          profit_per_item=300.0, roi_percent=20.0,
+                          pass_filter=False, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(
+            PriceSearchCondition(pass_min_profit=1000.0, pass_min_roi=10.0), db=db
+        )
+
+        by_asin = {item.asin: item for item in result.items}
+        assert by_asin["C010"].pass_filter is True   # 両方OK
+        assert by_asin["C011"].pass_filter is False  # ROI不足
+        assert by_asin["C012"].pass_filter is False  # 利益不足
