@@ -141,7 +141,7 @@ def search_prices(
             roi_percent=r.roi_percent,
             pass_filter=_pass(r),
             checked_at=r.checked_at,
-            amazon_url=r.amazon_url,
+            amazon_url=r.amazon_url or f"https://www.amazon.co.jp/dp/{r.asin}",
             rakuten_url=r.rakuten_url,
         )
         for r in rows
