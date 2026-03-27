@@ -1,5 +1,5 @@
 // frontend/src/components/PriceSearchPage.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   fetchPrices,
   fetchPriceSummary,
@@ -44,6 +44,28 @@ const PriceSearchPage: React.FC = () => {
   // 並び替え
   const [sortKey, setSortKey] = useState<keyof PriceItem | "">("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // ====== 既読管理 ======
+  const [readAsins, setReadAsins] = useState<Set<string>>(() => {
+    try {
+      const s = localStorage.getItem("readAsins");
+      return s ? new Set<string>(JSON.parse(s)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("readAsins", JSON.stringify([...readAsins]));
+  }, [readAsins]);
+
+  const handleRowClick = (asin: string) => {
+    setReadAsins((prev) => {
+      const next = new Set(prev);
+      next.add(asin);
+      return next;
+    });
+  };
 
   // ====== バッチ実行 ======
   const [runningJob, setRunningJob] = useState<RunJobResponse | null>(null);
@@ -749,6 +771,24 @@ const PriceSearchPage: React.FC = () => {
             検索結果一覧
           </h2>
 
+          {readAsins.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setReadAsins(new Set())}
+              style={{
+                padding: "3px 8px",
+                borderRadius: 4,
+                border: "1px solid #d1d5db",
+                background: "#f9fafb",
+                fontSize: 11,
+                cursor: "pointer",
+                color: "#6b7280",
+              }}
+            >
+              既読をクリア（{readAsins.size}件）
+            </button>
+          )}
+
           <div
             style={{
               marginLeft: "auto",
@@ -840,11 +880,16 @@ const PriceSearchPage: React.FC = () => {
                 {sortedItems.map((item, index) => (
                   <tr
                     key={item.asin}
+                    onClick={() => handleRowClick(item.asin)}
                     style={{
+                      cursor: "pointer",
                       borderBottom: "1px solid #f3f4f6",
-                      background: item.pass_filter
-                        ? "#f0fdf4"
-                        : index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                      background: readAsins.has(item.asin)
+                        ? "#f3f4f6"
+                        : item.pass_filter
+                          ? "#f0fdf4"
+                          : index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                      opacity: readAsins.has(item.asin) ? 0.6 : 1,
                     }}
                   >
                     <td style={tdStyle}>{item.asin}</td>
