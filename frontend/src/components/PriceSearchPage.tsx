@@ -778,7 +778,9 @@ const PriceSearchPage: React.FC = () => {
                     key={item.asin}
                     style={{
                       borderBottom: "1px solid #f3f4f6",
-                      background: index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                      background: item.pass_filter
+                        ? "#f0fdf4"
+                        : index % 2 === 0 ? "#ffffff" : "#f9fafb",
                     }}
                   >
                     <td style={tdStyle}>{item.asin}</td>
