@@ -457,7 +457,10 @@ const PriceSearchPage: React.FC = () => {
             />
           </div>
 
-          {/* 2段目：粗利・ROI */}
+          {/* 2段目：絞り込み条件 */}
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
+            絞り込み条件
+          </div>
           <div
             style={{
               display: "grid",
@@ -476,7 +479,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              利益（絞込）:
+              最低利益（円）:
             </div>
             <div>
               <input
@@ -500,7 +503,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              ROI（絞込）:
+              最低ROI（%）:
             </div>
             <div>
               <input
@@ -576,12 +579,16 @@ const PriceSearchPage: React.FC = () => {
                   checked={condition.only_pass_filter ?? false}
                   onChange={handleChangeOnlyPassFilter}
                 />
-                pass_filter = true のみ取得
+                仕入候補のみ表示
               </label>
             </div>
           </div>
 
-          {/* 4段目：動的 pass 判定閾値 */}
+          {/* 4段目：仕入候補の判定条件 */}
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>
+            仕入候補の判定条件
+            <span style={{ fontWeight: 400, marginLeft: 6 }}>（空欄なら保存済みの判定を使う）</span>
+          </div>
           <div
             style={{
               display: "grid",
@@ -600,7 +607,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              利益（pass判定）:
+              仕入判定 最低利益（円）:
             </div>
             <div>
               <input
@@ -624,7 +631,7 @@ const PriceSearchPage: React.FC = () => {
                 paddingRight: 6,
               }}
             >
-              ROI（pass判定）:
+              仕入判定 最低ROI（%）:
             </div>
             <div>
               <input
