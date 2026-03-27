@@ -29,6 +29,7 @@ data/queries/
 #html
 html/
 *.html
+!frontend/index.html
 
 # Postgres data directory
 infra/postgres-data/
