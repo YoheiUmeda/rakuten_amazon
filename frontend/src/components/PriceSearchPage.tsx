@@ -59,10 +59,10 @@ const PriceSearchPage: React.FC = () => {
     localStorage.setItem("readAsins", JSON.stringify([...readAsins]));
   }, [readAsins]);
 
-  const handleRowClick = (asin: string) => {
+  const toggleRead = (asin: string) => {
     setReadAsins((prev) => {
       const next = new Set(prev);
-      next.add(asin);
+      next.has(asin) ? next.delete(asin) : next.add(asin);
       return next;
     });
   };
@@ -882,15 +882,15 @@ const PriceSearchPage: React.FC = () => {
                   <th style={thStyle}>チェック日時</th>
                   <th style={thStyle}>Amazonリンク</th>
                   <th style={thStyle}>楽天リンク</th>
+                  <th style={thStyle}>既読</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedItems.map((item, index) => (
                   <tr
                     key={item.asin}
-                    onClick={() => handleRowClick(item.asin)}
                     style={{
-                      cursor: "pointer",
+                      cursor: "default",
                       borderBottom: "1px solid #f3f4f6",
                       background: item.pass_filter
                         ? "#f0fdf4"
@@ -965,6 +965,24 @@ const PriceSearchPage: React.FC = () => {
                       ) : (
                         ""
                       )}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <button
+                        type="button"
+                        aria-label={readAsins.has(item.asin) ? "未読に戻す" : "既読にする"}
+                        title={readAsins.has(item.asin) ? "未読に戻す" : "既読にする"}
+                        onClick={() => toggleRead(item.asin)}
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: 11,
+                          borderRadius: 4,
+                          border: "1px solid #d1d5db",
+                          background: readAsins.has(item.asin) ? "#e5e7eb" : "#ffffff",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {readAsins.has(item.asin) ? "既読" : "未読"}
+                      </button>
                     </td>
                   </tr>
                 ))}
