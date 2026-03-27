@@ -717,31 +717,39 @@ const PriceSearchPage: React.FC = () => {
                 borderRadius: 6,
                 background: "#eef2ff",
                 fontSize: 12,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                gap: 8,
               }}
             >
-              <div>
-                <div style={{ color: "#4b5563" }}>最新チェック</div>
-                <div style={{ fontWeight: 600 }}>
-                  {summary.latest_checked_at ?? "-"}
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 6 }}>
+                全体サマリー（全ASIN最新件）
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                }}
+              >
+                <div>
+                  <div style={{ color: "#4b5563" }}>最新チェック日時</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {summary.latest_checked_at ?? "-"}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ color: "#4b5563" }}>件数</div>
-                <div style={{ fontWeight: 600 }}>{summary.count}</div>
-              </div>
-              <div>
-                <div style={{ color: "#4b5563" }}>平均粗利</div>
-                <div style={{ fontWeight: 600 }}>
-                  {formatYen(summary.avg_profit)}
+                <div>
+                  <div style={{ color: "#4b5563" }}>全ASIN件数</div>
+                  <div style={{ fontWeight: 600 }}>{summary.count}</div>
                 </div>
-              </div>
-              <div>
-                <div style={{ color: "#4b5563" }}>平均ROI</div>
-                <div style={{ fontWeight: 600 }}>
-                  {formatPercent(summary.avg_roi)}
+                <div>
+                  <div style={{ color: "#4b5563" }}>平均粗利（全体）</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {formatYen(summary.avg_profit)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: "#4b5563" }}>平均ROI（全体）</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {formatPercent(summary.avg_roi)}
+                  </div>
                 </div>
               </div>
             </div>

@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models import Base, PriceSnapshot
 from app.schemas import PriceSearchCondition
-from app.api.prices import search_prices
+from app.api.prices import get_price_summary, search_prices
 
 
 @pytest.fixture
@@ -230,3 +230,37 @@ class TestDynamicPassFilter:
         assert by_asin["C010"].pass_filter is True   # 両方OK
         assert by_asin["C011"].pass_filter is False  # ROI不足
         assert by_asin["C012"].pass_filter is False  # 利益不足
+
+
+class TestPriceSummary:
+
+    def test_empty_db_returns_zero_count(self, db):
+        """DBが空のとき count=0 を返す"""
+        result = get_price_summary(db=db)
+
+        assert result.count == 0
+        assert result.latest_checked_at is None
+        assert result.avg_profit is None
+        assert result.avg_roi is None
+
+    def test_counts_only_latest_per_asin(self, db):
+        """同一 ASIN の複数行があっても最新1件のみカウントする"""
+        db.add_all([
+            PriceSnapshot(asin="D001", title="old",
+                          profit_per_item=500.0, roi_percent=10.0,
+                          pass_filter=False, checked_at=T_OLD),
+            PriceSnapshot(asin="D001", title="new",
+                          profit_per_item=1000.0, roi_percent=20.0,
+                          pass_filter=True, checked_at=T_NEW),
+            PriceSnapshot(asin="D002", title="only",
+                          profit_per_item=600.0, roi_percent=15.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = get_price_summary(db=db)
+
+        assert result.count == 2                        # D001(最新1件) + D002 = 2
+        assert result.latest_checked_at == T_NEW        # 最新 checked_at
+        assert result.avg_profit == pytest.approx(800.0)  # (1000 + 600) / 2
+        assert result.avg_roi == pytest.approx(17.5)      # (20 + 15) / 2

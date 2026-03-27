@@ -69,3 +69,12 @@ class PriceResponse(BaseModel):
 
     items: List[PriceItem]
     total: int
+
+
+class PriceSummary(BaseModel):
+    """全ASIN・最新件の集計サマリー。"""
+
+    latest_checked_at: Optional[datetime] = None
+    count: int
+    avg_profit: Optional[float] = None
+    avg_roi: Optional[float] = None

@@ -9,9 +9,35 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import PriceSnapshot
-from app.schemas import PriceItem, PriceSearchCondition, PriceResponse
+from app.schemas import PriceItem, PriceSearchCondition, PriceResponse, PriceSummary
 
 router = APIRouter()
+
+
+@router.get("/prices/summary", response_model=PriceSummary)
+def get_price_summary(db: Session = Depends(get_db)) -> PriceSummary:
+    """全ASIN・最新件の集計サマリーを返す。"""
+    latest_sq = (
+        db.query(func.max(PriceSnapshot.id).label("max_id"))
+        .group_by(PriceSnapshot.asin)
+        .subquery()
+    )
+    row = (
+        db.query(
+            func.count(PriceSnapshot.id).label("count"),
+            func.max(PriceSnapshot.checked_at).label("latest"),
+            func.avg(PriceSnapshot.profit_per_item).label("avg_profit"),
+            func.avg(PriceSnapshot.roi_percent).label("avg_roi"),
+        )
+        .join(latest_sq, PriceSnapshot.id == latest_sq.c.max_id)
+        .one()
+    )
+    return PriceSummary(
+        latest_checked_at=row.latest,
+        count=row.count or 0,
+        avg_profit=row.avg_profit,
+        avg_roi=row.avg_roi,
+    )
 
 
 @router.post("/prices", response_model=PriceResponse)
