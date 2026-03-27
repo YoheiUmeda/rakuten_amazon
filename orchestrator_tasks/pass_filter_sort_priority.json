@@ -1,0 +1,13 @@
+{
+  "goal": "ソート順に pass_filter desc を先頭追加して仕入候補を優先表示",
+  "targets": [
+    "app/api/prices.py",
+    "tests/test_prices_api.py",
+    "orchestrator_tasks/pass_filter_sort_priority.json"
+  ],
+  "pytest_commands": [
+    ".\\venv\\Scripts\\pytest.exe tests\\test_prices_api.py -v --tb=short"
+  ],
+  "commit_message": "feat: prioritize pass_filter items in price sorting",
+  "allow_push": true
+}

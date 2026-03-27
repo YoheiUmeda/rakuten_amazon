@@ -86,3 +86,23 @@ class TestPassFilterInResponse:
         by_asin = {item.asin: item for item in result.items}
         assert by_asin["B003"].pass_filter is True
         assert by_asin["B004"].pass_filter is False
+
+
+class TestPassFilterSortPriority:
+
+    def test_pass_filter_true_comes_before_higher_profit_false(self, db):
+        """profit が低くても pass_filter=True の商品が pass_filter=False より先に返る"""
+        db.add_all([
+            PriceSnapshot(asin="B005", title="high_profit_rejected",
+                          profit_per_item=9999.0, roi_percent=50.0,
+                          pass_filter=False, checked_at=T_NEW),
+            PriceSnapshot(asin="B006", title="low_profit_candidate",
+                          profit_per_item=100.0, roi_percent=10.0,
+                          pass_filter=True, checked_at=T_NEW),
+        ])
+        db.commit()
+
+        result = search_prices(PriceSearchCondition(), db=db)
+
+        assert result.items[0].asin == "B006"   # pass_filter=True が先頭
+        assert result.items[1].asin == "B005"

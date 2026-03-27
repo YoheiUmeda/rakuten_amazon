@@ -62,8 +62,9 @@ def search_prices(
     # 件数（limit をかける前の総件数）
     total = q.count()
 
-    # 並び順：デフォルトは「利益の大きい順、同じなら新しい順」
+    # 並び順：仕入候補を先頭に、その中で利益の大きい順、同じなら新しい順
     q = q.order_by(
+        PriceSnapshot.pass_filter.desc().nullslast(),
         PriceSnapshot.profit_per_item.desc().nullslast(),
         PriceSnapshot.checked_at.desc(),
     )
