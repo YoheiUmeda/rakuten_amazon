@@ -18,6 +18,7 @@ import pytest
 
 from tools.ai_orchestrator.generate_review_request import (
     build_review_request,
+    collect_related_code,
     get_changed_files,
     get_git_diff,
     run_test_command,
@@ -33,61 +34,55 @@ VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"
 
 class TestBuildReviewRequest:
 
-    def test_minimal_has_only_required_keys(self):
-        data = build_review_request(
+    def _build(self, **kwargs):
+        defaults = dict(
             task="テスト", changed_files=["a.py"],
             git_diff="", test_command="", test_output="",
-            open_questions=[], constraints=[],
+            related_code="", open_questions=[], constraints=[],
         )
+        defaults.update(kwargs)
+        return build_review_request(**defaults)
+
+    def test_minimal_has_only_required_keys(self):
+        data = self._build()
         assert data["task"] == "テスト"
         assert data["changed_files"] == ["a.py"]
-        # 空値フィールドは key ごと除外される
         assert "git_diff" not in data
         assert "test_command" not in data
         assert "test_output" not in data
+        assert "related_code" not in data
         assert "open_questions" not in data
         assert "constraints" not in data
 
     def test_git_diff_included_when_nonempty(self):
-        data = build_review_request(
-            task="t", changed_files=[],
-            git_diff="diff --git a/foo.py ...", test_command="",
-            test_output="", open_questions=[], constraints=[],
-        )
+        data = self._build(git_diff="diff --git a/foo.py ...")
         assert "git_diff" in data
         assert data["git_diff"] == "diff --git a/foo.py ..."
 
     def test_test_output_included_when_nonempty(self):
-        data = build_review_request(
-            task="t", changed_files=[],
-            git_diff="", test_command="pytest",
-            test_output="3 passed", open_questions=[], constraints=[],
-        )
+        data = self._build(test_command="pytest", test_output="3 passed")
         assert data["test_command"] == "pytest"
         assert data["test_output"] == "3 passed"
 
+    def test_related_code_included(self):
+        data = self._build(related_code="def foo(): pass")
+        assert "related_code" in data
+        assert data["related_code"] == "def foo(): pass"
+
+    def test_related_code_empty_excluded(self):
+        data = self._build(related_code="")
+        assert "related_code" not in data
+
     def test_open_questions_included(self):
-        data = build_review_request(
-            task="t", changed_files=[],
-            git_diff="", test_command="", test_output="",
-            open_questions=["疑問1", "疑問2"], constraints=[],
-        )
+        data = self._build(open_questions=["疑問1", "疑問2"])
         assert data["open_questions"] == ["疑問1", "疑問2"]
 
     def test_constraints_included(self):
-        data = build_review_request(
-            task="t", changed_files=[],
-            git_diff="", test_command="", test_output="",
-            open_questions=[], constraints=["制約1"],
-        )
+        data = self._build(constraints=["制約1"])
         assert data["constraints"] == ["制約1"]
 
     def test_empty_list_excluded(self):
-        data = build_review_request(
-            task="t", changed_files=[],
-            git_diff="", test_command="", test_output="",
-            open_questions=[], constraints=[],
-        )
+        data = self._build()
         assert "open_questions" not in data
         assert "constraints" not in data
 
@@ -234,3 +229,62 @@ class TestDryRunCLI:
         data = json.loads(output.read_text(encoding="utf-8"))
         assert "test_output" in data
         assert "test_marker_output" in data["test_output"]
+
+    def test_related_code_in_output(self, tmp_path):
+        """--related-code で実ファイルを指定すると JSON に related_code が含まれる。"""
+        # rakuten_client.py は存在するファイル
+        output = tmp_path / "review_request.json"
+        result = self._run([
+            "--task", "テスト",
+            "--files", "rakuten_client.py",
+            "--related-code", "rakuten_client.py",
+            "--output", str(output),
+        ])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        data = json.loads(output.read_text(encoding="utf-8"))
+        assert "related_code" in data
+        assert "rakuten_client.py" in data["related_code"]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# collect_related_code
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestCollectRelatedCode:
+
+    def test_empty_files_returns_empty(self):
+        result = collect_related_code([])
+        assert result == ""
+
+    def test_single_file_included(self, tmp_path, monkeypatch):
+        src = tmp_path / "sample.py"
+        src.write_text("def hello(): pass\n", encoding="utf-8")
+        # REPO_ROOT を tmp_path に向ける
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+        result = collect_related_code(["sample.py"])
+        assert "def hello(): pass" in result
+        assert "sample.py" in result
+
+    def test_missing_file_skipped(self):
+        # 存在しないファイルは例外なく空文字列を返す
+        result = collect_related_code(["nonexistent_file_xyz.py"])
+        assert result == ""
+
+    def test_per_file_truncation(self, tmp_path, monkeypatch):
+        src = tmp_path / "big.py"
+        src.write_text("\n".join([f"line{i}" for i in range(201)]), encoding="utf-8")
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+        result = collect_related_code(["big.py"], per_file_lines=200)
+        assert "[TRUNCATED:" in result
+        assert "line0" in result
+        assert "line199" in result  # 200行目（0-indexed 199）は含まれる
+
+    def test_total_char_limit(self, tmp_path, monkeypatch):
+        src = tmp_path / "large.py"
+        src.write_text("x" * 5000, encoding="utf-8")  # 5000文字
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+        result = collect_related_code(["large.py"], total_chars=4000)
+        assert "[TRUNCATED: total chars exceeded 4000]" in result

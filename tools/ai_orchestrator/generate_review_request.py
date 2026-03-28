@@ -28,6 +28,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
 DIFF_LINE_LIMIT = 1000
+PER_FILE_LINE_LIMIT = 200
+RELATED_CODE_CHAR_LIMIT = 4000
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -67,6 +69,35 @@ def get_git_diff(staged: bool, files: list[str]) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# related code collector
+# ──────────────────────────────────────────────────────────────────────────
+
+def collect_related_code(
+    files: list[str],
+    per_file_lines: int = PER_FILE_LINE_LIMIT,
+    total_chars: int = RELATED_CODE_CHAR_LIMIT,
+) -> str:
+    """指定ファイルの内容を結合して related_code 文字列を返す。行数・文字数で切り捨て。"""
+    parts = []
+    for f in files:
+        path = REPO_ROOT / f
+        if not path.exists():
+            print(f"[WARN] --related-code: ファイルが見つかりません: {f}", file=sys.stderr)
+            continue
+        content = path.read_text(encoding="utf-8", errors="replace")
+        lines = content.splitlines()
+        if len(lines) > per_file_lines:
+            content = "\n".join(lines[:per_file_lines])
+            content += f"\n# [TRUNCATED: {len(lines)} lines, showing first {per_file_lines}]"
+        parts.append(f"# --- {f} ---\n{content}")
+    combined = "\n\n".join(parts)
+    if len(combined) > total_chars:
+        combined = combined[:total_chars]
+        combined += f"\n# [TRUNCATED: total chars exceeded {total_chars}]"
+    return combined
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # test runner
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -95,6 +126,7 @@ def build_review_request(
     git_diff: str,
     test_command: str,
     test_output: str,
+    related_code: str,
     open_questions: list[str],
     constraints: list[str],
 ) -> dict:
@@ -105,6 +137,8 @@ def build_review_request(
         data["test_command"] = test_command
     if test_output:
         data["test_output"] = test_output
+    if related_code:
+        data["related_code"] = related_code
     if open_questions:
         data["open_questions"] = open_questions
     if constraints:
@@ -130,6 +164,7 @@ def main() -> None:
     parser.add_argument("--staged", action="store_true", help="git diff --cached を使う（staged 変更）")
     parser.add_argument("--test-cmd", default="", help="テストコマンド（例: venv/Scripts/python -m pytest tests/ -v）")
     parser.add_argument("--run-tests", action="store_true", help="--test-cmd を実際に実行してテスト出力を取り込む")
+    parser.add_argument("--related-code", nargs="*", default=[], metavar="F", help="関連コードファイル（内容を取り込む、複数可）")
     parser.add_argument("--open-questions", nargs="*", default=[], metavar="Q", help="未解決の疑問点（複数可）")
     parser.add_argument("--constraints", nargs="*", default=[], metavar="C", help="守るべき制約（複数可）")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="出力先 JSON パス")
@@ -151,13 +186,17 @@ def main() -> None:
     if args.run_tests and args.test_cmd:
         test_output = run_test_command(args.test_cmd)
 
-    # 4. build
+    # 4. related code
+    related_code = collect_related_code(getattr(args, "related_code", []))
+
+    # 5. build
     data = build_review_request(
         task=args.task,
         changed_files=changed_files,
         git_diff=git_diff,
         test_command=args.test_cmd,
         test_output=test_output,
+        related_code=related_code,
         open_questions=args.open_questions,
         constraints=args.constraints,
     )
