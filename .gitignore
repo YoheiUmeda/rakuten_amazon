@@ -46,5 +46,8 @@ docs/review_reply.md
 # AI orchestrator handoff (generated, may contain secrets)
 .ai/handoff/review_request.json
 
+# AI orchestrator run logs (local-only, do not commit)
+.ai/logs/
+
 # Frontend build info
 frontend/tsconfig.tsbuildinfo

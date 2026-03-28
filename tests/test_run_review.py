@@ -335,3 +335,31 @@ class TestAppendHistory:
 
         lines = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()
         assert len(lines) == 2
+
+    def test_dry_run_with_files_has_correct_count(self, tmp_path, monkeypatch):
+        """--files 指定の dry-run で changed_files_count が正しく記録されること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True, files=["a.py", "b.py", "c.py"]))
+
+        e = _json.loads((tmp_path / "runs.jsonl").read_text(encoding="utf-8"))
+        assert e["changed_files_count"] == 3
+
+    def test_save_only_with_files_has_correct_count(self, tmp_path, monkeypatch):
+        """--files 指定の save-only でも changed_files_count が正しく記録されること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True, files=["x.py", "y.py"]))
+
+        e = _json.loads((tmp_path / "runs.jsonl").read_text(encoding="utf-8"))
+        assert e["changed_files_count"] == 2

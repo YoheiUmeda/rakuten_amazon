@@ -151,8 +151,11 @@ def run(args: argparse.Namespace) -> None:
         _append_history(h)
         sys.exit(0)
 
-    # changed_files_count を保存済み JSON から取得（save-only / full-step）
-    if not args.dry_run and DEFAULT_INPUT.exists():
+    # changed_files_count: --files 指定時は直接カウント（dry-run でも正確）
+    # staged + dry-run の場合のみ 0 のまま（git 呼び出しを避けるため）
+    if args.files:
+        h["changed_files_count"] = len(args.files)
+    elif not args.dry_run and DEFAULT_INPUT.exists():
         try:
             h["changed_files_count"] = len(
                 json.loads(DEFAULT_INPUT.read_text(encoding="utf-8")).get("changed_files", [])
