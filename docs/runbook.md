@@ -46,6 +46,93 @@ python -m tools.ai_orchestrator.generate_design_update_packet --dry-run
 uvicorn app.main_fastapi:app --reload
 ```
 
+## レビューオーケストレーター
+
+### 実行タイミング
+実装後・テスト通過後・commit 前を基本とする。
+
+### 基本フロー
+
+**Step 1: staged 状態にする**
+```bash
+git add <変更ファイル>
+```
+
+**Step 2: dry-run で内容確認**
+```bash
+venv/Scripts/python -m tools.ai_orchestrator.generate_review_request \
+  --task "タスクの説明" \
+  --staged \
+  --test-cmd "python -m pytest tests/ -v" \
+  --run-tests \
+  --dry-run
+```
+`related_code` が必要な場合のみ `--related-code file1.py` を追加（後述）。
+
+**Step 3: review_request.json 保存**
+```bash
+venv/Scripts/python -m tools.ai_orchestrator.generate_review_request \
+  --task "タスクの説明" \
+  --staged \
+  [--test-cmd "..." --run-tests] \
+  [--related-code file1.py] \
+  --output .ai/handoff/review_request.json
+```
+
+**Step 4: orchestrator 実行**
+```bash
+venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
+  --input .ai/handoff/review_request.json \
+  --output docs/review_reply.md
+```
+
+**Step 5: review_reply.md を確認して commit**
+
+---
+
+### 失敗時の扱い（fail-open — 開発は止めない）
+
+| 失敗ケース | 対応 |
+|---|---|
+| `generate_review_request` が空 diff | `--files` で対象を明示指定して再試行。解決しなければスキップして commit |
+| `orchestrator` 失敗（API エラー等） | `review_reply.md` なしで commit を続行。レビューなし commit は許容する |
+| `test-cmd` 失敗 | `test_output` に失敗内容が含まれる。テスト修正後に再実行するか、内容を open_questions に転記して続行 |
+| `OPENAI_API_KEY` 未設定 | `.env` を確認。なければ `--dry-run` で user content のみ確認して終了 |
+
+---
+
+### related_code 使用基準
+- diff だけでは文脈が不足するときだけ使う（例: 変更関数の呼び出し元が重要な場合）
+- 基本は 1〜2 ファイルまで。何でも追加しない（4000文字上限）
+- diff を見て「これだけで意図が伝わる」と思えば related_code は不要
+
+### Windows での test-cmd 推奨書式
+- `python -m pytest tests/ -v`（venv 有効化済みの場合）
+- またはフルパス: `C:/path/to/venv/Scripts/python.exe -m pytest tests/ -v`
+- `venv/Scripts/python` 相対パスは cmd.exe で不安定なことがある
+
+### 生成物の git 管理
+- `.ai/handoff/review_request.json` — `.gitignore` 済み、commit しない
+- `docs/review_reply.md` — `.gitignore` 済み、commit しない
+- commit 前に `git status` で working tree が clean か確認
+
+---
+
+### 運用チェックリスト（commit 前）
+
+```
+[ ] git add 済みで staged 状態になっているか
+[ ] --staged または --files で対象ファイルが正しく取れているか
+[ ] test-cmd が OS 的に安全な書式か（Windows: フルパス推奨）
+[ ] dry-run で changed_files / git_diff / test_output の内容が妥当か
+[ ] related_code は本当に必要か（diff だけで足りないか）
+[ ] review_request.json に secrets が含まれていないか
+[ ] review_reply.md を確認したか（または API 失敗で skip したか）
+[ ] git status が clean か（review_request.json / review_reply.md が staged に入っていないか）
+```
+
+---
+
 ## 障害対応チェックリスト
 
 | 症状 | 確認箇所 |

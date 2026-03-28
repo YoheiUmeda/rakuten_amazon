@@ -61,4 +61,6 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
 - `review_request.json` は機密情報を含む可能性があるため commit 前に要確認
 - `pass_filter / fee / profit` ロジックへの言及は警告を出すこと
 - `--related-code` で指定したファイルは内容が JSON に含まれる（最大 200行 / 4000文字）
+- **`--related-code` 使用基準**: diff だけでは文脈不足のときのみ使う。基本 1〜2 ファイルまで。diff を見て意図が伝わるなら不要
 - **Windows で `--test-cmd` を使う場合**: `venv/Scripts/python` の相対パスは cmd.exe で不安定なことがある。フルパス（例: `C:/path/to/venv/Scripts/python.exe`）または `sys.executable` の出力値を使うと安定する
+- **失敗時は fail-open**: orchestrator や API が失敗しても開発は止めない。`review_reply.md` なしで commit を続行してよい
