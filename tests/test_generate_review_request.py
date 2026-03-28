@@ -247,6 +247,40 @@ class TestDryRunCLI:
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# _git helper
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestGitHelper:
+
+    def test_git_returns_stdout_on_success(self, monkeypatch):
+        """returncode=0 のとき stdout を返す。"""
+        import subprocess
+        import tools.ai_orchestrator.generate_review_request as mod
+
+        fake = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="some output\n", stderr=""
+        )
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake)
+        result = mod._git(["status"])
+        assert result == "some output"
+
+    def test_git_warns_on_failure(self, monkeypatch, capsys):
+        """returncode=1 かつ stderr あり → WARN が stderr に出る。stdout は返す。"""
+        import subprocess
+        import tools.ai_orchestrator.generate_review_request as mod
+
+        fake = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="fatal: not a git repo\n"
+        )
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake)
+        result = mod._git(["diff"])
+        assert result == ""
+        captured = capsys.readouterr()
+        assert "[WARN]" in captured.err
+        assert "fatal: not a git repo" in captured.err
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # collect_related_code
 # ──────────────────────────────────────────────────────────────────────────
 

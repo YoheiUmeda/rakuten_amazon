@@ -44,6 +44,8 @@ def _git(args: list[str]) -> str:
         encoding="utf-8",
         cwd=REPO_ROOT,
     )
+    if result.returncode != 0 and result.stderr:
+        print(f"[WARN] git コマンド失敗 ({result.returncode}): {result.stderr.strip()}", file=sys.stderr)
     return result.stdout.strip()
 
 
@@ -110,9 +112,10 @@ def run_test_command(cmd: str) -> str:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        errors="replace",
         cwd=REPO_ROOT,
     )
-    output = (result.stdout + result.stderr).strip()
+    output = ((result.stdout or "") + (result.stderr or "")).strip()
     return output
 
 
