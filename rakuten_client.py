@@ -189,7 +189,7 @@ def escape_rakuten_keyword(
 
     final_tokens, total_bytes = [], 0
     for token, _ in sorted_tokens:
-        token_bytes = len(token.encode('utf-8')) + 1
+        token_bytes = len(urllib.parse.quote(token, safe='').encode('utf-8')) + 3  # +3 for %20
         if total_bytes + token_bytes > byte_limit:
             break
         final_tokens.append(token)
