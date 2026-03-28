@@ -1,0 +1,18 @@
+{
+  "task": "escape_rakuten_keyword のバイト計算修正をレビューしてほしい。URLエンコード後バイトで蓄積するよう変更した。",
+  "changed_files": [
+    "rakuten_client.py"
+  ],
+  "git_diff": "diff --git a/rakuten_client.py b/rakuten_client.py\n--- a/rakuten_client.py\n+++ b/rakuten_client.py\n@@ -192 +192 @@\n-    token_bytes = len(token.encode('utf-8')) + 1\n+    token_bytes = len(urllib.parse.quote(token, safe='').encode('utf-8')) + 3",
+  "test_command": "pytest tests/test_escape_rakuten_keyword.py -v",
+  "test_output": "8 passed in 0.10s",
+  "related_code": "def escape_rakuten_keyword(title, fallback, byte_limit=800):\n    ...",
+  "open_questions": [
+    "+3 の根拠は %20 分だが、他のケースで不足する可能性はあるか？",
+    "byte_limit=800 は楽天API の仕様から来ているか確認が必要"
+  ],
+  "constraints": [
+    "pass_filter / fee / profit ロジックには触れない",
+    "既存の fallback 動作（空タイトルは ASIN を返す）を壊さない"
+  ]
+}

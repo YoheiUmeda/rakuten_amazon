@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "task",
+    "changed_files"
+  ],
+  "properties": {
+    "task": {
+      "type": "string",
+      "description": "このレビューで確認したいこと"
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "変更ファイルのパスリスト"
+    },
+    "git_diff": {
+      "type": "string",
+      "description": "git diff の全文（省略・要約しない）"
+    },
+    "test_command": {
+      "type": "string",
+      "description": "テスト実行コマンド"
+    },
+    "test_output": {
+      "type": "string",
+      "description": "pytest / テスト出力の全文"
+    },
+    "related_code": {
+      "type": "string",
+      "description": "関連する関数・クラスのコード断片"
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "未解決の疑問点"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "守るべき制約（例: pass_filter に触れない）"
+    }
+  },
+  "additionalProperties": false
+}
