@@ -420,6 +420,8 @@ def get_rakuten_info(asins: dict) -> dict:
         if cache_key in RAKUTEN_CACHE:
             cached_entries = RAKUTEN_CACHE[cache_key] or []
             logger.info("[楽天CACHE HIT] key=%s entries=%d", cache_key, len(cached_entries))
+            if not cached_entries:
+                info["reject_reason"] = "cached_no_hit"
 
             # キャッシュ内容を info に展開
             for idx2, entry in enumerate(cached_entries[:3], start=1):
@@ -501,6 +503,7 @@ def get_rakuten_info(asins: dict) -> dict:
         # 結果処理
         if not items:
             logger.info(f"[楽天NO_HIT] ASIN={asin}, fallback={fallback}")
+            info["reject_reason"] = "no_rakuten_hit"
 
         for item in items:
             title = item.get('itemName') or ""
@@ -573,6 +576,8 @@ def get_rakuten_info(asins: dict) -> dict:
 
         # ヒット順に並び替え & 情報登録（最大3件）
         item_infos = sorted(item_infos, key=lambda x: x['effective_per_item'])[:3]
+        if items and not item_infos:
+            info["reject_reason"] = "all_rakuten_items_rejected"
 
         # キャッシュに保存（NO_HITでも空配列としてキャッシュ）
         RAKUTEN_CACHE[cache_key] = item_infos

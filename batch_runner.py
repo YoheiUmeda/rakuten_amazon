@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -243,11 +244,13 @@ def run_batch_once(
         PREFILTER_MIN_MAX_POSSIBLE_PROFIT,
         PREFILTER_MIN_PRICE,
     )
-    filtered_for_rakuten: Dict[str, Dict[str, Any]] = prefilter_for_rakuten(
+    filtered_for_rakuten, prefilter_excluded = prefilter_for_rakuten(
         amazon_offer_data_with_fee,
         min_max_possible_profit=PREFILTER_MIN_MAX_POSSIBLE_PROFIT,
         min_price=PREFILTER_MIN_PRICE,
     )
+    for asin, reason in prefilter_excluded.items():
+        log.info("[REJECT] ASIN=%s reason=%s", asin, reason)
     n_filtered = len(filtered_for_rakuten)
     summary["rakuten_candidates"] = n_filtered
 
@@ -275,6 +278,15 @@ def run_batch_once(
 
     elapsed = time.time() - start_time
     log.info("[3.5/4] 楽天価格情報取得完了 (経過 %.1f秒)", elapsed)
+
+    reject_counter = Counter(prefilter_excluded.values())
+    for asin, data in filtered_for_rakuten.items():
+        reason = (data or {}).get("reject_reason")
+        if reason:
+            log.info("[REJECT] ASIN=%s reason=%s", asin, reason)
+            reject_counter[reason] += 1
+    for reason, count in reject_counter.most_common():
+        log.info("[REJECT_SUMMARY] reason=%s count=%d", reason, count)
 
     # 4️⃣ 価格差計算
     log.info("[BATCH] 価格差計算中...")
