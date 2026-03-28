@@ -354,3 +354,45 @@ class TestCollectRelatedCode:
         monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
         result = collect_related_code(["large.py"], total_chars=4000)
         assert "[TRUNCATED: total chars exceeded 4000]" in result
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# _normalize_test_cmd
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestNormalizeTestCmd:
+
+    def _fake_venv(self, tmp_path):
+        """存在する fake VENV_PYTHON を返す。"""
+        exe = tmp_path / "python.exe"
+        exe.touch()
+        return exe
+
+    def test_forward_slash_replaced(self, tmp_path, monkeypatch):
+        """venv/Scripts/python → 絶対パスに置換される。"""
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "VENV_PYTHON", self._fake_venv(tmp_path))
+        result = mod._normalize_test_cmd("venv/Scripts/python -m pytest tests/ -v")
+        assert result.startswith(str(tmp_path / "python.exe"))
+        assert result.endswith(" -m pytest tests/ -v")
+
+    def test_backslash_replaced(self, tmp_path, monkeypatch):
+        """venv\\Scripts\\python → 絶対パスに置換される。"""
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "VENV_PYTHON", self._fake_venv(tmp_path))
+        result = mod._normalize_test_cmd("venv\\Scripts\\python -m pytest")
+        assert result.startswith(str(tmp_path / "python.exe"))
+
+    def test_no_change_for_other_command(self, tmp_path, monkeypatch):
+        """venv パターンを含まないコマンドは変更されない。"""
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "VENV_PYTHON", self._fake_venv(tmp_path))
+        cmd = "python -m pytest tests/"
+        assert mod._normalize_test_cmd(cmd) == cmd
+
+    def test_no_change_when_venv_missing(self, tmp_path, monkeypatch):
+        """venv が存在しない場合はコマンドをそのまま返す（fail-open）。"""
+        import tools.ai_orchestrator.generate_review_request as mod
+        monkeypatch.setattr(mod, "VENV_PYTHON", tmp_path / "nonexistent.exe")
+        cmd = "venv/Scripts/python -m pytest"
+        assert mod._normalize_test_cmd(cmd) == cmd

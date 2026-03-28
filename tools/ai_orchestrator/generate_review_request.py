@@ -34,6 +34,7 @@ DEFAULT_OUTPUT = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
 DIFF_LINE_LIMIT = 1000
 PER_FILE_LINE_LIMIT = 200
 RELATED_CODE_CHAR_LIMIT = 4000
+VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -107,8 +108,24 @@ def collect_related_code(
 # test runner
 # ──────────────────────────────────────────────────────────────────────────
 
+def _normalize_test_cmd(cmd: str) -> str:
+    """venv/Scripts/python の相対パスを絶対パスに正規化する（fail-open）。
+
+    Windows の shell=True 環境では / がスイッチ文字として解釈されるため、
+    venv/Scripts/python が 'venv' コマンドとして誤解釈される問題を防ぐ。
+    venv が存在しない場合は変更しない。
+    """
+    if not VENV_PYTHON.exists():
+        return cmd
+    for pat in ("venv/Scripts/python", "venv\\Scripts\\python"):
+        if cmd.startswith(pat):
+            return str(VENV_PYTHON) + cmd[len(pat):]
+    return cmd
+
+
 def run_test_command(cmd: str) -> str:
     """テストコマンドを実行して stdout+stderr を返す。タイムアウト時は [TIMEOUT] を返す。"""
+    cmd = _normalize_test_cmd(cmd)
     print(f"[INFO] テスト実行: {cmd}")
     enc = locale.getpreferredencoding(False)  # Win: cp932 / Linux・Mac: utf-8
     try:
