@@ -38,5 +38,9 @@ infra/postgres-data/
 rakuten_cache.json
 
 .claude/
- 
- 
+
+# AI orchestrator generated output
+docs/review_reply.md
+
+# Frontend build info
+frontend/tsconfig.tsbuildinfo
