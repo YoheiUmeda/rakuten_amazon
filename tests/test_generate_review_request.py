@@ -39,6 +39,7 @@ class TestBuildReviewRequest:
             task="テスト", changed_files=["a.py"],
             git_diff="", test_command="", test_output="",
             related_code="", open_questions=[], constraints=[],
+            model="gpt-4o-mini",
         )
         defaults.update(kwargs)
         return build_review_request(**defaults)
@@ -85,6 +86,14 @@ class TestBuildReviewRequest:
         data = self._build()
         assert "open_questions" not in data
         assert "constraints" not in data
+
+    def test_model_included_when_set(self):
+        data = self._build(model="gpt-4o-mini")
+        assert data["model"] == "gpt-4o-mini"
+
+    def test_model_excluded_when_empty(self):
+        data = self._build(model="")
+        assert "model" not in data
 
 
 # ──────────────────────────────────────────────────────────────────────────

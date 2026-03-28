@@ -25,7 +25,7 @@ def _args(**kwargs) -> argparse.Namespace:
     defaults = dict(
         task="テスト", staged=False, files=[], test_cmd="",
         run_tests=False, related_code=[], open_questions=[],
-        constraints=[], dry_run=False, save_only=False,
+        constraints=[], dry_run=False, save_only=False, model=None,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -201,3 +201,53 @@ class TestPrintJsonSummary:
         _print_json_summary(p)
         out = capsys.readouterr().out
         assert "5 passed" in out
+
+    def test_shows_model(self, tmp_path, capsys):
+        """model フィールドが要約に表示されること。"""
+        import json
+        from tools.ai_orchestrator.run_review import _print_json_summary
+        p = tmp_path / "req.json"
+        p.write_text(json.dumps({
+            "task": "t", "changed_files": [], "model": "gpt-4o-mini"
+        }), encoding="utf-8")
+        _print_json_summary(p)
+        out = capsys.readouterr().out
+        assert "gpt-4o-mini" in out
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# --model パススルーテスト
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestModelPassthrough:
+
+    def test_model_arg_passed_to_generate(self, monkeypatch):
+        """--model が generate コマンドに渡されること。"""
+        from tools.ai_orchestrator import run_review
+        captured: list[list] = []
+
+        def fake_run(cmd, **kw):
+            captured.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True, model="gpt-4o"))
+        assert captured, "generate が呼ばれていない"
+        gen_cmd = captured[0]
+        assert "--model" in gen_cmd
+        idx = gen_cmd.index("--model")
+        assert gen_cmd[idx + 1] == "gpt-4o"
+
+    def test_no_model_arg_not_passed(self, monkeypatch):
+        """--model 未指定のとき generate コマンドに --model が含まれないこと。"""
+        from tools.ai_orchestrator import run_review
+        captured: list[list] = []
+
+        def fake_run(cmd, **kw):
+            captured.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True, model=None))
+        gen_cmd = captured[0]
+        assert "--model" not in gen_cmd

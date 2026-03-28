@@ -22,9 +22,12 @@ from __future__ import annotations
 import argparse
 import json
 import locale
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+from tools.ai_orchestrator.openai_client import DEFAULT_MODEL
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
@@ -139,8 +142,11 @@ def build_review_request(
     related_code: str,
     open_questions: list[str],
     constraints: list[str],
+    model: str = "",
 ) -> dict:
     data: dict = {"task": task, "changed_files": changed_files}
+    if model:
+        data["model"] = model
     if git_diff:
         data["git_diff"] = git_diff
     if test_command:
@@ -179,7 +185,12 @@ def main() -> None:
     parser.add_argument("--constraints", nargs="*", default=[], metavar="C", help="守るべき制約（複数可）")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="出力先 JSON パス")
     parser.add_argument("--dry-run", action="store_true", help="stdout に出力のみ、ファイル書き込みなし")
+    parser.add_argument("--model", default=None,
+                        help="使用モデル（省略時: OPENAI_MODEL env → gpt-4o-mini）")
     args = parser.parse_args()
+
+    # 0. model 解決
+    model = args.model or os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
     # 1. changed files
     changed_files = get_changed_files(args.staged, args.files)
@@ -209,6 +220,7 @@ def main() -> None:
         related_code=related_code,
         open_questions=args.open_questions,
         constraints=args.constraints,
+        model=model,
     )
 
     json_text = json.dumps(data, ensure_ascii=False, indent=2)

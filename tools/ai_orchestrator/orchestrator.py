@@ -92,7 +92,7 @@ def build_user_content(data: dict) -> str:
 # Main flow
 # ──────────────────────────────────────────────────────────────────────────
 
-def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
+def run(input_path: Path, output_path: Path, dry_run: bool, model: str | None = None) -> None:
     # 1. input JSON 読み込み
     if not input_path.exists():
         print(f"[ERROR] 入力ファイルが見つかりません: {input_path}", file=sys.stderr)
@@ -130,9 +130,9 @@ def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
     print(f"[INFO] タスク: {task_preview}{suffix}")
     print(f"[INFO] 変更ファイル数: {len(data.get('changed_files', []))}")
 
-    # モデル解決（dry-run でも表示）
+    # モデル解決: CLI > OPENAI_MODEL env > DEFAULT_MODEL（dry-run でも表示）
     from tools.ai_orchestrator.openai_client import DEFAULT_MODEL
-    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+    model = model or os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
     print(f"[INFO] model: {model}")
 
     if dry_run:
@@ -179,12 +179,15 @@ def main() -> None:
     parser.add_argument("--input",   required=True, help="review_request.json のパス")
     parser.add_argument("--output",  required=True, help="review_reply.md の出力先")
     parser.add_argument("--dry-run", action="store_true", help="API を呼ばず入力確認のみ")
+    parser.add_argument("--model", default=None,
+                        help="使用モデル（省略時: OPENAI_MODEL env → gpt-4o-mini）")
     args = parser.parse_args()
 
     run(
         input_path=Path(args.input),
         output_path=Path(args.output),
         dry_run=args.dry_run,
+        model=args.model,
     )
 
 

@@ -48,6 +48,9 @@ def _print_json_summary(path: Path) -> None:
         return
     print("\n[run_review] --- review_request.json 要約 ---")
     print(f"  task       : {data.get('task', '')[:80]}")
+    model = data.get("model", "")
+    if model:
+        print(f"  model      : {model}")
     files = data.get("changed_files", [])
     files_str = ", ".join(files) if files else "(なし)"
     print(f"  files ({len(files):2d}) : {files_str}")
@@ -78,6 +81,7 @@ def run(args: argparse.Namespace) -> None:
     if args.open_questions:                      gen_cmd += ["--open-questions"]  + args.open_questions
     if args.constraints:                         gen_cmd += ["--constraints"]     + args.constraints
     if args.dry_run:                             gen_cmd.append("--dry-run")
+    if getattr(args, "model", None):             gen_cmd += ["--model",           args.model]
 
     print("[run_review] Step 1: generate_review_request")
     try:
@@ -105,6 +109,7 @@ def run(args: argparse.Namespace) -> None:
     orch_cmd = [py, "-m", "tools.ai_orchestrator.orchestrator",
                 "--input",  str(DEFAULT_INPUT),
                 "--output", str(DEFAULT_OUTPUT)]
+    if getattr(args, "model", None):             orch_cmd += ["--model", args.model]
     print("\n[run_review] Step 2: orchestrator")
     try:
         r = subprocess.run(orch_cmd, cwd=REPO_ROOT, timeout=300)
@@ -141,6 +146,8 @@ def main() -> None:
                         help="generate のみ実行（orchestrator をスキップ）")
     parser.add_argument("--save-only",      action="store_true",
                         help="review_request.json を保存して終了（orchestrator をスキップ）")
+    parser.add_argument("--model",          default=None,
+                        help="使用モデル（省略時: OPENAI_MODEL env → gpt-4o-mini）")
     args = parser.parse_args()
     run(args)
 

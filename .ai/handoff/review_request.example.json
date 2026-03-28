@@ -3,6 +3,7 @@
   "changed_files": [
     "rakuten_client.py"
   ],
+  "model": "gpt-4o-mini",
   "git_diff": "diff --git a/rakuten_client.py b/rakuten_client.py\n--- a/rakuten_client.py\n+++ b/rakuten_client.py\n@@ -192 +192 @@\n-    token_bytes = len(token.encode('utf-8')) + 1\n+    token_bytes = len(urllib.parse.quote(token, safe='').encode('utf-8')) + 3",
   "test_command": "pytest tests/test_escape_rakuten_keyword.py -v",
   "test_output": "8 passed in 0.10s",
