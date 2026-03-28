@@ -23,6 +23,7 @@ usage:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,30 @@ DEFAULT_OUTPUT = REPO_ROOT / "docs" / "review_reply.md"
 
 def _python() -> str:
     return str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
+
+
+def _print_json_summary(path: Path) -> None:
+    """保存済み review_request.json の要約を stdout に表示する。ファイル不在・破損時はスキップ。"""
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    print("\n[run_review] --- review_request.json 要約 ---")
+    print(f"  task       : {data.get('task', '')[:80]}")
+    files = data.get("changed_files", [])
+    files_str = ", ".join(files) if files else "(なし)"
+    print(f"  files ({len(files):2d}) : {files_str}")
+    q = data.get("open_questions", [])
+    if q:
+        print(f"  questions  : {len(q)} 件")
+    test_out = data.get("test_output", "")
+    if test_out:
+        preview = test_out[:120].replace("\n", " ")
+        suffix = "..." if len(test_out) > 120 else ""
+        print(f"  test_output: {preview}{suffix}")
+    print("[run_review] -----------------------------------")
 
 
 def run(args: argparse.Namespace) -> None:
@@ -73,6 +98,7 @@ def run(args: argparse.Namespace) -> None:
     if getattr(args, "save_only", False):
         print(f"[run_review] --save-only: review_request.json 保存済み。orchestrator はスキップ。")
         print(f"[run_review] 確認: {DEFAULT_INPUT}")
+        _print_json_summary(DEFAULT_INPUT)
         return
 
     # ── Step 2: orchestrator（fail-open） ─────────────────────────────────

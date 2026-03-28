@@ -163,3 +163,41 @@ class TestSaveOnly:
         assert captured, "generate が呼ばれていない"
         gen_cmd = captured[0]
         assert "--dry-run" not in gen_cmd
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# _print_json_summary テスト
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestPrintJsonSummary:
+
+    def test_shows_task_and_file_count(self, tmp_path, capsys):
+        """task と changed_files 件数が出力に含まれること。"""
+        import json
+        from tools.ai_orchestrator.run_review import _print_json_summary
+        p = tmp_path / "req.json"
+        p.write_text(json.dumps({
+            "task": "テストタスク", "changed_files": ["a.py", "b.py"]
+        }, ensure_ascii=False), encoding="utf-8")
+        _print_json_summary(p)
+        out = capsys.readouterr().out
+        assert "テストタスク" in out
+        assert "2" in out  # files count
+
+    def test_missing_file_is_silently_skipped(self, tmp_path):
+        """ファイル不在でも例外が出ないこと。"""
+        from tools.ai_orchestrator.run_review import _print_json_summary
+        _print_json_summary(tmp_path / "nonexistent.json")  # 例外なし
+
+    def test_shows_test_output_preview(self, tmp_path, capsys):
+        """test_output の先頭が表示されること。"""
+        import json
+        from tools.ai_orchestrator.run_review import _print_json_summary
+        p = tmp_path / "req.json"
+        p.write_text(json.dumps({
+            "task": "t", "changed_files": [],
+            "test_output": "5 passed in 1.23s"
+        }), encoding="utf-8")
+        _print_json_summary(p)
+        out = capsys.readouterr().out
+        assert "5 passed" in out
