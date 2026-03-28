@@ -53,3 +53,32 @@ Main goals:
 - All requests.get calls must include timeout=(10, 30); never add a call without it
 - RAKUTEN_SLEEP_TIME is a float (e.g. 0.2); always read with float(), never int()
 - search_rakuten_product_api and search_ichiba_from_product have no retry logic; 429 is absorbed by except Exception
+
+## AI Orchestrator (run_review)
+
+### 標準実行パターン
+
+```bash
+# 変更内容を確認してから進める（review_request.json を保存して止まる）
+venv/Scripts/python -m tools.ai_orchestrator.run_review \
+  --task "タスク説明" --staged --save-only
+
+# full-step（API 呼び出し・review_reply.md 生成）
+venv/Scripts/python -m tools.ai_orchestrator.run_review \
+  --task "タスク説明" --staged \
+  --test-cmd "venv/Scripts/python -m pytest tests/ -v" --run-tests
+
+# 実行履歴を確認
+venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
+```
+
+### モデル方針（〜2026-04-13 頃まで）
+
+- デフォルト: `gpt-4o-mini`（`OPENAI_MODEL` 未設定で自動適用）
+- 変更する場合: `--model gpt-4o` または `.env` に `OPENAI_MODEL=gpt-4o`
+
+### やってはいけないこと
+
+- 無関係なファイルを staged に混ぜたまま full-step を実行しない
+- 巨大差分（数百行以上）でいきなり full-step を回さない（save-only で確認してから）
+- `--test-cmd` の引数に secrets を含めない
