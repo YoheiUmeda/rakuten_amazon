@@ -222,3 +222,33 @@ class TestDryRunCLI:
         run(input_path=inp, output_path=tmp_path / "reply.md", dry_run=True)
         out = capsys.readouterr().out
         assert "..." in out
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# モデル解決
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestModelResolution:
+
+    def test_default_model_is_mini(self):
+        """DEFAULT_MODEL が gpt-4o-mini であること。"""
+        from tools.ai_orchestrator.openai_client import DEFAULT_MODEL
+        assert DEFAULT_MODEL == "gpt-4o-mini"
+
+    def test_env_var_overrides_default(self, monkeypatch):
+        """OPENAI_MODEL env var がデフォルトを上書きすること。"""
+        import os
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
+        resolved = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        assert resolved == "gpt-4o"
+
+    def test_dry_run_shows_model(self, tmp_path):
+        """dry-run の stdout に [INFO] model: が含まれること。"""
+        out_path = tmp_path / "reply.md"
+        r = subprocess.run(
+            [str(VENV_PYTHON), "-m", "tools.ai_orchestrator.orchestrator",
+             "--input", str(EXAMPLE_INPUT), "--output", str(out_path), "--dry-run"],
+            capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
+        )
+        assert r.returncode == 0
+        assert "[INFO] model:" in r.stdout

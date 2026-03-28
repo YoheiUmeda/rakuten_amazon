@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import os
 
+DEFAULT_MODEL = "gpt-4o-mini"
+
 
 def call_review(
     system_prompt: str,
@@ -20,7 +22,7 @@ def call_review(
     Args:
         system_prompt: .ai/prompts/review_system.md の内容
         user_content:  レビュー依頼の本文（redact 済み）
-        model:         使用モデル（None なら OPENAI_MODEL env var → gpt-4o）
+        model:         使用モデル（None なら OPENAI_MODEL env var → gpt-4o-mini）
         api_key:       API キー（None なら OPENAI_API_KEY env var）
 
     Raises:
@@ -41,7 +43,7 @@ def call_review(
             "OPENAI_API_KEY が未設定です。.env に OPENAI_API_KEY=sk-... を追加してください。"
         )
 
-    resolved_model = model or os.getenv("OPENAI_MODEL", "gpt-4o")
+    resolved_model = model or os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
     client = openai.OpenAI(api_key=resolved_key)
 

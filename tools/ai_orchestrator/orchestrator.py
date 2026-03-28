@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -129,6 +130,11 @@ def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
     print(f"[INFO] タスク: {task_preview}{suffix}")
     print(f"[INFO] 変更ファイル数: {len(data.get('changed_files', []))}")
 
+    # モデル解決（dry-run でも表示）
+    from tools.ai_orchestrator.openai_client import DEFAULT_MODEL
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+    print(f"[INFO] model: {model}")
+
     if dry_run:
         # dry-run: API を呼ばず、整形内容を stdout に出力
         print("\n[DRY-RUN] --- system prompt (先頭200字) ---")
@@ -142,7 +148,7 @@ def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
     from tools.ai_orchestrator.openai_client import call_review
 
     try:
-        reply_text = call_review(system_prompt=system_prompt, user_content=user_content)
+        reply_text = call_review(system_prompt=system_prompt, user_content=user_content, model=model)
     except (ImportError, ValueError) as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
@@ -151,6 +157,7 @@ def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
     header = (
         f"# Review Reply\n\n"
         f"生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"model: `{model}`\n"
         f"入力: `{input_path}`\n\n---\n\n"
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
