@@ -10,6 +10,7 @@
 - `task`: 今回のレビュー依頼の説明（必須）
 - `files`: 対象ファイル（省略時は git diff HEAD から自動取得）
 - `test-cmd`: テストコマンド（例: `venv/Scripts/python -m pytest tests/ -v`）
+- `related-code`: 関連コードファイル（省略可、複数指定で内容を取り込む）
 - `open-questions`: 未解決の疑問点（複数可）
 - `constraints`: 守るべき制約（複数可、デフォルト: "pass_filter / fee / profit ロジックには触れない"）
 
@@ -21,6 +22,7 @@ venv/Scripts/python -m tools.ai_orchestrator.generate_review_request \
   --task "<task>" \
   [--files <file1> <file2> ...] \
   [--test-cmd "<cmd>"] \
+  [--related-code <file1> <file2> ...] \
   [--open-questions "<q1>" "<q2>"] \
   [--constraints "<c1>" "<c2>"] \
   --dry-run
@@ -40,6 +42,7 @@ venv/Scripts/python -m tools.ai_orchestrator.generate_review_request \
   [--files <file1> <file2> ...] \
   [--test-cmd "<cmd>"] \
   [--run-tests] \
+  [--related-code <file1> <file2> ...] \
   [--open-questions "<q1>" "<q2>"] \
   [--constraints "<c1>" "<c2>"] \
   --output .ai/handoff/review_request.json
@@ -57,3 +60,4 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
 - `docs/review_reply.md` は `.gitignore` 済みのため commit されない
 - `review_request.json` は機密情報を含む可能性があるため commit 前に要確認
 - `pass_filter / fee / profit` ロジックへの言及は警告を出すこと
+- `--related-code` で指定したファイルは内容が JSON に含まれる（最大 200行 / 4000文字）
