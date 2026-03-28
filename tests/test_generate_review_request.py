@@ -150,6 +150,20 @@ class TestRunTestCommand:
         output = run_test_command("echo hello_from_test")
         assert "hello_from_test" in output
 
+    def test_uses_system_encoding(self, monkeypatch):
+        """run_test_command は locale.getpreferredencoding(False) を encoding に使う。"""
+        import locale
+        captured: dict = {}
+        orig = subprocess.run
+
+        def fake(*a, **kw):
+            captured.update(kw)
+            return orig(*a, **kw)
+
+        monkeypatch.setattr(subprocess, "run", fake)
+        run_test_command("echo test")
+        assert captured.get("encoding") == locale.getpreferredencoding(False)
+
     def test_captures_nonzero_exit(self):
         """失敗コマンドでも出力を返す（例外は出ない）。"""
         # exit 1 するコマンドでも結果文字列が返る

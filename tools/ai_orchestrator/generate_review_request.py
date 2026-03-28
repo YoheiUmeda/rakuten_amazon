@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
 import subprocess
 import sys
 from pathlib import Path
@@ -106,12 +107,13 @@ def collect_related_code(
 def run_test_command(cmd: str) -> str:
     """テストコマンドを実行して stdout+stderr を返す。"""
     print(f"[INFO] テスト実行: {cmd}")
+    enc = locale.getpreferredencoding(False)  # Win: cp932 / Linux・Mac: utf-8
     result = subprocess.run(
         cmd,
         shell=True,
         capture_output=True,
         text=True,
-        encoding="utf-8",
+        encoding=enc,
         errors="replace",
         cwd=REPO_ROOT,
     )
