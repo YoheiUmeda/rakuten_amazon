@@ -172,6 +172,15 @@ class TestRunTestCommand:
         )
         assert "err_output" in output
 
+    def test_timeout_returns_timeout_message(self, monkeypatch):
+        """タイムアウト時は [TIMEOUT] メッセージを返すこと（例外は出ない）。"""
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired("cmd", 300)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        output = run_test_command("sleep 9999")
+        assert "[TIMEOUT]" in output
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # CLI（subprocess）

@@ -105,18 +105,23 @@ def collect_related_code(
 # ──────────────────────────────────────────────────────────────────────────
 
 def run_test_command(cmd: str) -> str:
-    """テストコマンドを実行して stdout+stderr を返す。"""
+    """テストコマンドを実行して stdout+stderr を返す。タイムアウト時は [TIMEOUT] を返す。"""
     print(f"[INFO] テスト実行: {cmd}")
     enc = locale.getpreferredencoding(False)  # Win: cp932 / Linux・Mac: utf-8
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        capture_output=True,
-        text=True,
-        encoding=enc,
-        errors="replace",
-        cwd=REPO_ROOT,
-    )
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding=enc,
+            errors="replace",
+            cwd=REPO_ROOT,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print("[WARN] テストコマンドがタイムアウトしました（300s）", file=sys.stderr)
+        return "[TIMEOUT] テストコマンドが 300 秒以内に完了しませんでした"
     output = ((result.stdout or "") + (result.stderr or "")).strip()
     return output
 
