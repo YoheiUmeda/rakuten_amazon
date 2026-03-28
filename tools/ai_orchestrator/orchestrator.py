@@ -124,7 +124,9 @@ def run(input_path: Path, output_path: Path, dry_run: bool) -> None:
     user_content = build_user_content(data)
 
     print(f"[INFO] 入力: {input_path}")
-    print(f"[INFO] タスク: {data['task'][:80]}...")
+    task_preview = data["task"][:80]
+    suffix = "..." if len(data["task"]) > 80 else ""
+    print(f"[INFO] タスク: {task_preview}{suffix}")
     print(f"[INFO] 変更ファイル数: {len(data.get('changed_files', []))}")
 
     if dry_run:

@@ -198,3 +198,27 @@ class TestDryRunCLI:
             cwd=REPO_ROOT,
         )
         assert result.returncode != 0
+
+    def test_short_task_log_no_ellipsis(self, tmp_path, capsys):
+        """短いタスク名のとき [INFO] タスク行に '...' が付かない。"""
+        import json
+        from tools.ai_orchestrator.orchestrator import run
+        data = {"task": "短いタスク", "changed_files": ["x.py"]}
+        inp = tmp_path / "req.json"
+        inp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        run(input_path=inp, output_path=tmp_path / "reply.md", dry_run=True)
+        out = capsys.readouterr().out
+        assert "短いタスク..." not in out
+        assert "短いタスク" in out
+
+    def test_long_task_log_has_ellipsis(self, tmp_path, capsys):
+        """80文字超のタスク名のとき [INFO] タスク行に '...' が付く。"""
+        import json
+        from tools.ai_orchestrator.orchestrator import run
+        long_task = "a" * 81
+        data = {"task": long_task, "changed_files": ["x.py"]}
+        inp = tmp_path / "req.json"
+        inp.write_text(json.dumps(data), encoding="utf-8")
+        run(input_path=inp, output_path=tmp_path / "reply.md", dry_run=True)
+        out = capsys.readouterr().out
+        assert "..." in out
