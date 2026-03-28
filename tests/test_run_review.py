@@ -251,3 +251,87 @@ class TestModelPassthrough:
         run_review.run(_args(dry_run=True, model=None))
         gen_cmd = captured[0]
         assert "--model" not in gen_cmd
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# run history テスト
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestAppendHistory:
+
+    def test_history_appended_on_dry_run(self, tmp_path, monkeypatch):
+        """dry-run 完了時に履歴が JSONL に追記されること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True))
+
+        lines = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1
+        e = _json.loads(lines[0])
+        assert e["mode"] == "dry-run"
+        assert e["success"] is True
+        assert e["api_status"] == "skipped"
+
+    def test_history_appended_on_save_only(self, tmp_path, monkeypatch):
+        """save-only 完了時に履歴が残ること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True))
+
+        e = _json.loads((tmp_path / "runs.jsonl").read_text(encoding="utf-8"))
+        assert e["mode"] == "save-only"
+        assert e["success"] is True
+
+    def test_history_on_generate_failure(self, tmp_path, monkeypatch):
+        """generate 失敗時も履歴が残ること（success=False）。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=1)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        with pytest.raises(SystemExit):
+            run_review.run(_args())
+
+        e = _json.loads((tmp_path / "runs.jsonl").read_text(encoding="utf-8"))
+        assert e["success"] is False
+
+    def test_model_recorded_in_history(self, tmp_path, monkeypatch):
+        """--model が履歴の model フィールドに記録されること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True, model="gpt-4o"))
+
+        e = _json.loads((tmp_path / "runs.jsonl").read_text(encoding="utf-8"))
+        assert e["model"] == "gpt-4o"
+
+    def test_history_accumulates(self, tmp_path, monkeypatch):
+        """複数回実行すると履歴が追記（上書きではなく）されること。"""
+        import json as _json
+        from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+
+        def fake_run(*a, **kw):
+            return subprocess.CompletedProcess([], returncode=0)
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(dry_run=True))
+        run_review.run(_args(dry_run=True))
+
+        lines = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 2
