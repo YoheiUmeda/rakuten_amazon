@@ -25,7 +25,7 @@ def _args(**kwargs) -> argparse.Namespace:
     defaults = dict(
         task="テスト", staged=False, files=[], test_cmd="",
         run_tests=False, related_code=[], open_questions=[],
-        constraints=[], dry_run=False,
+        constraints=[], dry_run=False, save_only=False,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -119,3 +119,47 @@ class TestFailOpen:
         with pytest.raises(SystemExit) as exc:
             run_review.run(_args())
         assert exc.value.code == 0
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# --save-only テスト
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestSaveOnly:
+
+    def test_save_only_calls_generate_not_orchestrator(self, monkeypatch):
+        """--save-only: generate は呼ばれ、orchestrator は呼ばれないこと。"""
+        from tools.ai_orchestrator import run_review
+        call_count: dict[str, int] = {"n": 0}
+
+        def fake_run(*a, **kw):
+            call_count["n"] += 1
+            return subprocess.CompletedProcess([], returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True))
+        assert call_count["n"] == 1  # generate のみ
+
+    def test_save_only_exits_zero_via_cli(self):
+        """--save-only が exit 0 で終わること（CLI 経由）。"""
+        r = subprocess.run(
+            [_py(), "-m", "tools.ai_orchestrator.run_review",
+             "--task", "テスト", "--staged", "--save-only"],
+            capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
+        )
+        assert r.returncode == 0, f"stderr: {r.stderr}"
+
+    def test_save_only_does_not_pass_dry_run_to_generate(self, monkeypatch):
+        """--save-only は generate に --dry-run を渡さない（JSON を実際に保存させる）。"""
+        from tools.ai_orchestrator import run_review
+        captured: list[list] = []
+
+        def fake_run(cmd, **kw):
+            captured.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True))
+        assert captured, "generate が呼ばれていない"
+        gen_cmd = captured[0]
+        assert "--dry-run" not in gen_cmd

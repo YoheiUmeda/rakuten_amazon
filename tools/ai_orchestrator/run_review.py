@@ -15,6 +15,10 @@ usage:
     # generate のみ（orchestrator スキップ）
     venv/Scripts/python -m tools.ai_orchestrator.run_review \\
       --task "タスク説明" --staged --dry-run
+
+    # review_request.json を保存して止まる（中身確認用）
+    venv/Scripts/python -m tools.ai_orchestrator.run_review \\
+      --task "タスク説明" --staged --save-only
 """
 from __future__ import annotations
 
@@ -66,6 +70,11 @@ def run(args: argparse.Namespace) -> None:
         print("[run_review] --dry-run: orchestrator はスキップ。")
         return
 
+    if getattr(args, "save_only", False):
+        print(f"[run_review] --save-only: review_request.json 保存済み。orchestrator はスキップ。")
+        print(f"[run_review] 確認: {DEFAULT_INPUT}")
+        return
+
     # ── Step 2: orchestrator（fail-open） ─────────────────────────────────
     orch_cmd = [py, "-m", "tools.ai_orchestrator.orchestrator",
                 "--input",  str(DEFAULT_INPUT),
@@ -104,6 +113,8 @@ def main() -> None:
     parser.add_argument("--constraints",    nargs="*", default=[], metavar="C")
     parser.add_argument("--dry-run",        action="store_true",
                         help="generate のみ実行（orchestrator をスキップ）")
+    parser.add_argument("--save-only",      action="store_true",
+                        help="review_request.json を保存して終了（orchestrator をスキップ）")
     args = parser.parse_args()
     run(args)
 

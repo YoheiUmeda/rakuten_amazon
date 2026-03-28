@@ -59,8 +59,12 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
 > **ショートカット**: Step 2〜4（generate → orchestrator）を一発で実行したい場合は `run_review.py` を使う。
 > ```
 > venv/Scripts/python -m tools.ai_orchestrator.run_review \
->   --task "<task>" --staged [--test-cmd "..." --run-tests] [--dry-run]
+>   --task "<task>" --staged [--test-cmd "..." --run-tests] [--dry-run] [--save-only]
 > ```
+> - `--dry-run`: JSON 保存なし、orchestrator スキップ（内容プレビューのみ）
+> - `--save-only`: JSON 保存あり、orchestrator スキップ（中身を確認してから orchestrator を手動実行したい場合）
+> - なし: 全ステップ実行
+>
 > fail-open: orchestrator 失敗時も `exit 0`。commit は止まらない。
 
 ## 注意事項

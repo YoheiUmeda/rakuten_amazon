@@ -96,11 +96,17 @@ Step 2〜4 を1コマンドに集約したショートカット。
 fail-open: orchestrator 失敗時も `exit 0` で終了し、commit を止めない。
 
 ```bash
-# dry-run（generate のみ、API 不要）
+# dry-run（JSON保存なし、generate の出力だけ確認）
 venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --task "タスク説明" \
   --staged \
   --dry-run
+
+# save-only（JSON保存して止まる、orchestrator はスキップ）
+venv/Scripts/python -m tools.ai_orchestrator.run_review \
+  --task "タスク説明" \
+  --staged \
+  --save-only
 
 # 全ステップ実行（OPENAI_API_KEY 必要）
 venv/Scripts/python -m tools.ai_orchestrator.run_review \
@@ -109,6 +115,12 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --test-cmd "python -m pytest tests/ -v" \
   --run-tests
 ```
+
+| オプション | 挙動 |
+|---|---|
+| `--dry-run` | JSON 保存なし、orchestrator スキップ |
+| `--save-only` | JSON 保存あり、orchestrator スキップ（中身確認用） |
+| なし | JSON 保存あり、orchestrator まで全実行 |
 
 失敗時は WARN を出して `exit 0`。`review_reply.md` なしで commit を続行してよい。
 
