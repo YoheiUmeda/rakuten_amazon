@@ -9,7 +9,7 @@
 以下をユーザーに確認する（回答がなければデフォルトを使う）:
 - `task`: 今回のレビュー依頼の説明（必須）
 - `files`: 対象ファイル（省略時は git diff HEAD から自動取得）
-- `test-cmd`: テストコマンド（例: `venv/Scripts/python -m pytest tests/ -v`）
+- `test-cmd`: テストコマンド（例: `python -m pytest tests/ -v`、Windows では後述の注意参照）
 - `related-code`: 関連コードファイル（省略可、複数指定で内容を取り込む）
 - `open-questions`: 未解決の疑問点（複数可）
 - `constraints`: 守るべき制約（複数可、デフォルト: "pass_filter / fee / profit ロジックには触れない"）
@@ -61,3 +61,4 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
 - `review_request.json` は機密情報を含む可能性があるため commit 前に要確認
 - `pass_filter / fee / profit` ロジックへの言及は警告を出すこと
 - `--related-code` で指定したファイルは内容が JSON に含まれる（最大 200行 / 4000文字）
+- **Windows で `--test-cmd` を使う場合**: `venv/Scripts/python` の相対パスは cmd.exe で不安定なことがある。フルパス（例: `C:/path/to/venv/Scripts/python.exe`）または `sys.executable` の出力値を使うと安定する
