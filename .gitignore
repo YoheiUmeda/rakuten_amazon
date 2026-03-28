@@ -37,7 +37,8 @@ infra/postgres-data/
 # Rakuten cache file
 rakuten_cache.json
 
-.claude/
+.claude/*
+!.claude/commands/
 
 # AI orchestrator generated output
 docs/review_reply.md
