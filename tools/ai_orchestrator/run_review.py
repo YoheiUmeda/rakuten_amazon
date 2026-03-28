@@ -51,7 +51,12 @@ def run(args: argparse.Namespace) -> None:
     if args.dry_run:                             gen_cmd.append("--dry-run")
 
     print("[run_review] Step 1: generate_review_request")
-    r = subprocess.run(gen_cmd, cwd=REPO_ROOT)
+    try:
+        r = subprocess.run(gen_cmd, cwd=REPO_ROOT, timeout=300)
+    except subprocess.TimeoutExpired:
+        print("[run_review][WARN] generate タイムアウト（300s）。fail-open: exit 0.",
+              file=sys.stderr)
+        sys.exit(0)
     if r.returncode != 0:
         print("[run_review][WARN] generate 失敗。処理を中断します（fail-open: exit 0）.",
               file=sys.stderr)
@@ -66,7 +71,12 @@ def run(args: argparse.Namespace) -> None:
                 "--input",  str(DEFAULT_INPUT),
                 "--output", str(DEFAULT_OUTPUT)]
     print("\n[run_review] Step 2: orchestrator")
-    r = subprocess.run(orch_cmd, cwd=REPO_ROOT)
+    try:
+        r = subprocess.run(orch_cmd, cwd=REPO_ROOT, timeout=300)
+    except subprocess.TimeoutExpired:
+        print("[run_review][WARN] orchestrator タイムアウト（300s）。fail-open: exit 0.",
+              file=sys.stderr)
+        sys.exit(0)
     if r.returncode != 0:
         print("[run_review][WARN] orchestrator 失敗。review_reply.md なしで続行可（fail-open）.",
               file=sys.stderr)

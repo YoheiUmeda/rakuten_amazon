@@ -91,3 +91,31 @@ class TestFailOpen:
         monkeypatch.setattr(subprocess, "run", fake_run)
         run_review.run(_args(dry_run=True))
         assert call_count["n"] == 1  # generate のみ、orchestrator は呼ばれない
+
+    def test_generate_timeout_is_failopen(self, monkeypatch):
+        """generate がタイムアウト → run_review は exit 0（fail-open）。"""
+        from tools.ai_orchestrator import run_review
+
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired("cmd", 300)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        with pytest.raises(SystemExit) as exc:
+            run_review.run(_args())
+        assert exc.value.code == 0
+
+    def test_orchestrator_timeout_is_failopen(self, monkeypatch):
+        """orchestrator がタイムアウト → run_review は exit 0（fail-open）。"""
+        from tools.ai_orchestrator import run_review
+        call_count: dict[str, int] = {"n": 0}
+
+        def fake_run(*a, **kw):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return subprocess.CompletedProcess([], returncode=0)
+            raise subprocess.TimeoutExpired("cmd", 300)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        with pytest.raises(SystemExit) as exc:
+            run_review.run(_args())
+        assert exc.value.code == 0
