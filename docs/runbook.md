@@ -90,6 +90,30 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
 
 ---
 
+### 一発実行（run_review.py）
+
+Step 2〜4 を1コマンドに集約したショートカット。
+fail-open: orchestrator 失敗時も `exit 0` で終了し、commit を止めない。
+
+```bash
+# dry-run（generate のみ、API 不要）
+venv/Scripts/python -m tools.ai_orchestrator.run_review \
+  --task "タスク説明" \
+  --staged \
+  --dry-run
+
+# 全ステップ実行（OPENAI_API_KEY 必要）
+venv/Scripts/python -m tools.ai_orchestrator.run_review \
+  --task "タスク説明" \
+  --staged \
+  --test-cmd "python -m pytest tests/ -v" \
+  --run-tests
+```
+
+失敗時は WARN を出して `exit 0`。`review_reply.md` なしで commit を続行してよい。
+
+---
+
 ### 失敗時の扱い（fail-open — 開発は止めない）
 
 | 失敗ケース | 対応 |

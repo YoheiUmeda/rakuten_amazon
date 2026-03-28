@@ -33,27 +33,8 @@ def _python() -> str:
     return str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 
 
-def main() -> None:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8")
-
-    parser = argparse.ArgumentParser(
-        description="generate_review_request + orchestrator を一発実行（fail-open）"
-    )
-    parser.add_argument("--task",           required=True)
-    parser.add_argument("--staged",         action="store_true")
-    parser.add_argument("--files",          nargs="*", default=[])
-    parser.add_argument("--test-cmd",       default="")
-    parser.add_argument("--run-tests",      action="store_true")
-    parser.add_argument("--related-code",   nargs="*", default=[], metavar="F")
-    parser.add_argument("--open-questions", nargs="*", default=[], metavar="Q")
-    parser.add_argument("--constraints",    nargs="*", default=[], metavar="C")
-    parser.add_argument("--dry-run",        action="store_true",
-                        help="generate のみ実行（orchestrator をスキップ）")
-    args = parser.parse_args()
-
+def run(args: argparse.Namespace) -> None:
+    """コアロジック。テストから直接呼べるよう main() から分離。"""
     py = _python()
 
     # ── Step 1: generate_review_request ──────────────────────────────────
@@ -92,6 +73,29 @@ def main() -> None:
         sys.exit(0)
 
     print(f"\n[run_review] 完了。確認: {DEFAULT_OUTPUT}")
+
+
+def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
+    parser = argparse.ArgumentParser(
+        description="generate_review_request + orchestrator を一発実行（fail-open）"
+    )
+    parser.add_argument("--task",           required=True)
+    parser.add_argument("--staged",         action="store_true")
+    parser.add_argument("--files",          nargs="*", default=[])
+    parser.add_argument("--test-cmd",       default="")
+    parser.add_argument("--run-tests",      action="store_true")
+    parser.add_argument("--related-code",   nargs="*", default=[], metavar="F")
+    parser.add_argument("--open-questions", nargs="*", default=[], metavar="Q")
+    parser.add_argument("--constraints",    nargs="*", default=[], metavar="C")
+    parser.add_argument("--dry-run",        action="store_true",
+                        help="generate のみ実行（orchestrator をスキップ）")
+    args = parser.parse_args()
+    run(args)
 
 
 if __name__ == "__main__":

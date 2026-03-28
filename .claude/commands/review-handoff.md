@@ -56,6 +56,13 @@ venv/Scripts/python -m tools.ai_orchestrator.orchestrator \
   --output docs/review_reply.md
 ```
 
+> **ショートカット**: Step 2〜4（generate → orchestrator）を一発で実行したい場合は `run_review.py` を使う。
+> ```
+> venv/Scripts/python -m tools.ai_orchestrator.run_review \
+>   --task "<task>" --staged [--test-cmd "..." --run-tests] [--dry-run]
+> ```
+> fail-open: orchestrator 失敗時も `exit 0`。commit は止まらない。
+
 ## 注意事項
 - `docs/review_reply.md` は `.gitignore` 済みのため commit されない
 - `review_request.json` は機密情報を含む可能性があるため commit 前に要確認
