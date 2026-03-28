@@ -43,5 +43,8 @@ rakuten_cache.json
 # AI orchestrator generated output
 docs/review_reply.md
 
+# AI orchestrator handoff (generated, may contain secrets)
+.ai/handoff/review_request.json
+
 # Frontend build info
 frontend/tsconfig.tsbuildinfo
