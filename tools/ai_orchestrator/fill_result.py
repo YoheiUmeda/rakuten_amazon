@@ -78,8 +78,9 @@ def _read_task_purpose() -> str:
     # ## で始まるセクションに分割して ## タスク を探す
     sections = re.split(r'^## ', body, flags=re.MULTILINE)
     for section in sections:
-        if section.startswith('タスク'):
-            return section[len('タスク'):].strip()
+        heading, _, body_part = section.partition('\n')
+        if heading.rstrip() == 'タスク':
+            return body_part.strip()
     return ""
 
 
@@ -231,9 +232,10 @@ def main() -> None:
     print(f"[INFO] 変更ファイル数: {len(changed_files)}")
     print()
     print("次のステップ:")
-    print("  1. result.md の「結論 / ログ要約 / 未確定点」を手動で補記")
-    print("  2. secrets_checked: false → true に変更して push")
-    print("  3. ChatGPT レビュー依頼文を生成:")
+    print("  1. result.md の TODO を手動補記（結論 / 影響範囲 / 重点レビュー観点 / ログ要約 / 未確定点）")
+    print("  2. secrets_checked: false → true に変更")
+    print("  3. git push origin main")
+    print("  4. ChatGPT レビュー依頼文を生成（コピー → ChatGPT に貼り付け）:")
     print("       venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt")
 
 

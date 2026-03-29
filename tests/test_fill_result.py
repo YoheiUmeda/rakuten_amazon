@@ -83,6 +83,20 @@ class TestReadTaskPurpose:
         monkeypatch.setattr(mod, "TASK_MD", task_md)
         assert mod._read_task_purpose() == ""
 
+    def test_does_not_match_task_details(self, tmp_path, monkeypatch):
+        """## タスク詳細 は ## タスク に誤マッチしないこと。"""
+        task_md = self._write_task(tmp_path, "\n## タスク詳細\nXX\n\n## タスク\n本物の目的\n")
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", task_md)
+        assert mod._read_task_purpose() == "本物の目的"
+
+    def test_does_not_match_task_list(self, tmp_path, monkeypatch):
+        """## タスク一覧 だけのとき は "" を返すこと。"""
+        task_md = self._write_task(tmp_path, "\n## タスク一覧\nYY\n")
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", task_md)
+        assert mod._read_task_purpose() == ""
+
     def test_frontmatter_hash_not_mistaken_for_section(self, tmp_path, monkeypatch):
         """フロントマター内の # コメントを ## タスク と誤認しないこと。"""
         task_md = tmp_path / "task.md"
