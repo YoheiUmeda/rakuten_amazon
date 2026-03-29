@@ -23,6 +23,7 @@ Keepa から Amazon 商品候補を取得し、楽天市場との価格差・利
 ```bash
 cp .env.example .env   # 各項目を設定
 source venv/bin/activate
+# Windows PowerShell の場合: .\venv\Scripts\Activate.ps1
 uvicorn app.main_fastapi:app --reload
 ```
 
