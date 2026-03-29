@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.ai_orchestrator.fill_result import _read_task_id, build_result_md
+from tools.ai_orchestrator.fill_result import _read_task_id, _read_task_purpose, build_result_md
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"
@@ -50,6 +50,49 @@ class TestReadTaskId:
         import tools.ai_orchestrator.fill_result as mod
         monkeypatch.setattr(mod, "TASK_MD", task_md)
         assert mod._read_task_id() == "0002"
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# _read_task_purpose
+# ──────────────────────────────────────────────────────────────────────────
+
+class TestReadTaskPurpose:
+
+    def _write_task(self, tmp_path, body: str) -> Path:
+        task_md = tmp_path / "task.md"
+        task_md.write_text(
+            f"---\ntask_id: \"0001\"\n---\n{body}",
+            encoding="utf-8",
+        )
+        return task_md
+
+    def test_reads_task_section(self, tmp_path, monkeypatch):
+        task_md = self._write_task(tmp_path, "\n## タスク\nXX を修正する\n\n## 背景と目的\nyyy\n")
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", task_md)
+        assert mod._read_task_purpose() == "XX を修正する"
+
+    def test_missing_file_returns_empty(self, tmp_path, monkeypatch):
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", tmp_path / "nonexistent.md")
+        assert mod._read_task_purpose() == ""
+
+    def test_empty_task_section_returns_empty(self, tmp_path, monkeypatch):
+        task_md = self._write_task(tmp_path, "\n## タスク\n\n## 背景と目的\nyyy\n")
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", task_md)
+        assert mod._read_task_purpose() == ""
+
+    def test_frontmatter_hash_not_mistaken_for_section(self, tmp_path, monkeypatch):
+        """フロントマター内の # コメントを ## タスク と誤認しないこと。"""
+        task_md = tmp_path / "task.md"
+        task_md.write_text(
+            "---\ntask_id: \"0001\"\n# status の定義:\n---\n\n## タスク\n正しい目的\n\n## 背景\nyyy\n",
+            encoding="utf-8",
+        )
+        import tools.ai_orchestrator.fill_result as mod
+        monkeypatch.setattr(mod, "TASK_MD", task_md)
+        assert mod._read_task_purpose() == "正しい目的"
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -67,6 +67,22 @@ CHAT_PROMPT_BODY = """\
 """
 
 
+def _read_task_purpose() -> str:
+    """task.md の ## タスク セクション本文を取得する（fail-open）。"""
+    if not TASK_MD.exists():
+        return ""
+    text = TASK_MD.read_text(encoding="utf-8")
+    # フロントマター除去
+    parts = re.split(r'^---\s*$', text, maxsplit=2, flags=re.MULTILINE)
+    body = parts[2] if len(parts) >= 3 else text
+    # ## で始まるセクションに分割して ## タスク を探す
+    sections = re.split(r'^## ', body, flags=re.MULTILINE)
+    for section in sections:
+        if section.startswith('タスク'):
+            return section[len('タスク'):].strip()
+    return ""
+
+
 def _read_task_id() -> str:
     """task.md フロントマターから task_id を取得する。空・未存在は "" を返す（fail-open）。"""
     if not TASK_MD.exists():
@@ -189,6 +205,7 @@ def main() -> None:
     changed_files = get_changed_files(args.staged, args.files)
     diff = get_git_diff(args.staged, changed_files)
     test_output = run_test_command(args.test_cmd) if args.run_tests and args.test_cmd else ""
+    purpose = args.purpose or _read_task_purpose()
 
     content = build_result_md(
         task_id=task_id,
@@ -197,7 +214,7 @@ def main() -> None:
         changed_files=changed_files,
         diff=diff,
         test_output=test_output,
-        purpose=args.purpose,
+        purpose=purpose,
         review_focus=args.review_focus,
     )
 
