@@ -111,6 +111,29 @@ class TestBuildResultMd:
         md = self._build(generated_at="2026-03-30T12:00:00+09:00")
         assert "2026-03-30T12:00:00+09:00" in md
 
+    def test_purpose_in_output(self):
+        md = self._build(purpose="XX 機能の修正")
+        assert "XX 機能の修正" in md
+
+    def test_empty_purpose_has_todo(self):
+        md = self._build(purpose="")
+        assert "## 目的" in md
+        assert "TODO" in md
+
+    def test_review_focus_in_output(self):
+        md = self._build(review_focus=["ロジックの正確性", "副作用の有無"])
+        assert "ロジックの正確性" in md
+        assert "副作用の有無" in md
+
+    def test_empty_review_focus_has_todo(self):
+        md = self._build(review_focus=[])
+        assert "## 重点レビュー観点" in md
+        assert "TODO" in md
+
+    def test_impact_scope_section_exists(self):
+        md = self._build()
+        assert "## 影響範囲" in md
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # CLI（subprocess）
@@ -171,6 +194,18 @@ class TestDryRunCLI:
         text = out.read_text(encoding="utf-8")
         assert "status: review-pending" in text
 
+    def test_purpose_arg_in_output(self, tmp_path):
+        out = tmp_path / "result.md"
+        self._run(["--files", "rakuten_client.py", "--purpose", "unique_purpose_xyz", "--output", str(out)])
+        assert "unique_purpose_xyz" in out.read_text(encoding="utf-8")
+
+    def test_review_focus_arg_in_output(self, tmp_path):
+        out = tmp_path / "result.md"
+        self._run(["--files", "rakuten_client.py", "--review-focus", "観点A", "観点B", "--output", str(out)])
+        text = out.read_text(encoding="utf-8")
+        assert "観点A" in text
+        assert "観点B" in text
+
     def test_print_chat_prompt_contains_url(self):
         """--print-chat-prompt の stdout に GitHub URL が含まれること。"""
         result = self._run(["--print-chat-prompt"])
@@ -182,4 +217,4 @@ class TestDryRunCLI:
         """--print-chat-prompt の stdout にレビュー指示文が含まれること。"""
         result = self._run(["--print-chat-prompt"])
         assert "secrets" in result.stdout
-        assert "承認可否" in result.stdout
+        assert "Approve" in result.stdout

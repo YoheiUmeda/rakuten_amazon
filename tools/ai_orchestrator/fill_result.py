@@ -43,11 +43,13 @@ CHAT_PROMPT_BODY = """\
 
 **確認ポイント:**
 - 結論は明確か（何をした・成功/失敗が分かるか）
+- 目的と結果が一致しているか
 - diff と変更ファイルは一致しているか
+- 影響範囲は妥当か（想定外の副作用がないか）
 - テスト結果は十分か（pass/fail が明示されているか）
 - secrets が含まれていないか（.env / APIキー / トークン / DB接続文字列）
 - 未確定点・懸念は適切に記録されているか
-- 次のアクション（archive・追加対応）を判断するのに十分な情報があるか
+- 重点レビュー観点に回答できるか
 
 **回答形式:**
 
@@ -58,10 +60,10 @@ CHAT_PROMPT_BODY = """\
 （diff と変更ファイルの整合性、テスト pass/fail、secrets 混入チェック）
 
 ## 懸念点（あれば）
-（品質・副作用・未確定点の観点から）
+（品質・副作用・未確定点・影響範囲の観点から）
 
-## 承認可否の判断材料
-（task.md を done にして archive してよいか）\
+## Approve / Request changes
+（archive 可 → Approve / 追加対応必要 → Request changes、理由1行）\
 """
 
 
@@ -88,11 +90,18 @@ def build_result_md(
     changed_files: list[str],
     diff: str,
     test_output: str,
+    purpose: str = "",
+    review_focus: list[str] | None = None,
 ) -> str:
     """result.md の全文を返す。"""
     files_block = "\n".join(f"- {f}" for f in changed_files) if changed_files else "-"
     conclusion_text = conclusion if conclusion else "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
+    purpose_text = purpose if purpose else "<!-- TODO: task.md の「タスク」から1〜2行でコピー -->"
     test_block = test_output.strip() if test_output else ""
+    if review_focus:
+        focus_block = "\n".join(f"- {f}" for f in review_focus)
+    else:
+        focus_block = "<!-- TODO: ChatGPT に特に見てほしい点。なければ「なし」 -->"
 
     return f"""\
 ---
@@ -115,8 +124,14 @@ secrets_checked: false
 ## 結論
 {conclusion_text}
 
+## 目的
+{purpose_text}
+
 ## 変更ファイル
 {files_block}
+
+## 影響範囲
+<!-- TODO: 変更の影響が及ぶ範囲（他モジュール・API・DB等）。なければ「なし」 -->
 
 ## diff
 <!-- git diff の全文または主要部分。secrets を含めないこと。 -->
@@ -136,6 +151,9 @@ secrets_checked: false
 ## 未確定点・懸念
 <!-- TODO: Claude が判断できなかった点、次に確認してほしいこと。なければ「なし」 -->
 
+## 重点レビュー観点
+{focus_block}
+
 ## secrets 確認
 - .env / APIキー / トークン: 未含有（確認済み）
 """
@@ -151,6 +169,9 @@ def main() -> None:
     parser.add_argument("--staged", action="store_true", help="git diff --cached を使う")
     parser.add_argument("--files", nargs="*", default=[], help="対象ファイル（省略時は git diff から自動取得）")
     parser.add_argument("--conclusion", default="", help="結論テキスト（省略可）")
+    parser.add_argument("--purpose", default="", help="目的テキスト（省略可）")
+    parser.add_argument("--review-focus", nargs="*", default=[], dest="review_focus",
+                        metavar="F", help="重点レビュー観点（複数可）")
     parser.add_argument("--test-cmd", default="", dest="test_cmd", help="テストコマンド")
     parser.add_argument("--run-tests", action="store_true", dest="run_tests", help="--test-cmd を実際に実行")
     parser.add_argument("--output", default=str(RESULT_MD), help="出力先（デフォルト: docs/handoff/result.md）")
@@ -176,6 +197,8 @@ def main() -> None:
         changed_files=changed_files,
         diff=diff,
         test_output=test_output,
+        purpose=args.purpose,
+        review_focus=args.review_focus,
     )
 
     if args.dry_run:

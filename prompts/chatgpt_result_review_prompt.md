@@ -26,11 +26,13 @@ venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt
 
 **確認ポイント:**
 - 結論は明確か（何をした・成功/失敗が分かるか）
+- 目的と結果が一致しているか
 - diff と変更ファイルは一致しているか
+- 影響範囲は妥当か（想定外の副作用がないか）
 - テスト結果は十分か（pass/fail が明示されているか）
 - secrets が含まれていないか（.env / APIキー / トークン / DB接続文字列）
 - 未確定点・懸念は適切に記録されているか
-- 次のアクション（archive・追加対応）を判断するのに十分な情報があるか
+- 重点レビュー観点に回答できるか
 
 **回答形式:**
 
@@ -41,10 +43,10 @@ venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt
 （diff と変更ファイルの整合性、テスト pass/fail、secrets 混入チェック）
 
 ## 懸念点（あれば）
-（品質・副作用・未確定点の観点から）
+（品質・副作用・未確定点・影響範囲の観点から）
 
-## 承認可否の判断材料
-（task.md を done にして archive してよいか）
+## Approve / Request changes
+（archive 可 → Approve / 追加対応必要 → Request changes、理由1行）
 
 ---
 
