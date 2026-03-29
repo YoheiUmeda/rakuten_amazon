@@ -34,6 +34,35 @@ from tools.ai_orchestrator.generate_review_request import (
 
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
 TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
+RESULT_MD_URL = (
+    "https://github.com/YoheiUmeda/rakuten_amazon"
+    "/blob/main/docs/handoff/result.md"
+)
+CHAT_PROMPT_BODY = """\
+以下の実行結果レポートをレビューし、人間が確認・承認できる形で整理してください。
+
+**確認ポイント:**
+- 結論は明確か（何をした・成功/失敗が分かるか）
+- diff と変更ファイルは一致しているか
+- テスト結果は十分か（pass/fail が明示されているか）
+- secrets が含まれていないか（.env / APIキー / トークン / DB接続文字列）
+- 未確定点・懸念は適切に記録されているか
+- 次のアクション（archive・追加対応）を判断するのに十分な情報があるか
+
+**回答形式:**
+
+## 実行結果の要点
+（何をした・どのファイルが変わった・テストの状況を箇条書きで）
+
+## diff / テスト結果の確認
+（diff と変更ファイルの整合性、テスト pass/fail、secrets 混入チェック）
+
+## 懸念点（あれば）
+（品質・副作用・未確定点の観点から）
+
+## 承認可否の判断材料
+（task.md を done にして archive してよいか）\
+"""
 
 
 def _read_task_id() -> str:
@@ -126,7 +155,13 @@ def main() -> None:
     parser.add_argument("--run-tests", action="store_true", dest="run_tests", help="--test-cmd を実際に実行")
     parser.add_argument("--output", default=str(RESULT_MD), help="出力先（デフォルト: docs/handoff/result.md）")
     parser.add_argument("--dry-run", action="store_true", help="stdout に出力のみ、ファイル書き込みなし")
+    parser.add_argument("--print-chat-prompt", action="store_true", dest="print_chat_prompt",
+                        help="ChatGPT にそのまま貼れるレビュー依頼文を stdout に出力して終了")
     args = parser.parse_args()
+
+    if args.print_chat_prompt:
+        print(f"{CHAT_PROMPT_BODY}\n\n{RESULT_MD_URL}")
+        return
 
     task_id = _read_task_id()
     generated_at = _now_jst()
@@ -158,7 +193,8 @@ def main() -> None:
     print("次のステップ:")
     print("  1. result.md の「結論 / ログ要約 / 未確定点」を手動で補記")
     print("  2. secrets_checked: false → true に変更して push")
-    print("  3. ChatGPT レビュー: prompts/chatgpt_result_review_prompt.md を使用")
+    print("  3. ChatGPT レビュー依頼文を生成:")
+    print("       venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt")
 
 
 if __name__ == "__main__":

@@ -5,9 +5,16 @@
 - コピペ（fallback）: result.md の全文を末尾に貼る
 
 ## 使い方
+
+### CLI（推奨）
+```bash
+venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt
+```
+出力をそのままコピーして ChatGPT に貼る。
+
+### 手動（fallback）
 1. result.md の status が `review-pending` になっていることを確認する
-2. GitHub URL を ChatGPT に渡す（browsing 対応の場合）
-   または result.md の全文をこのプロンプトの末尾に貼り付けて送信する
+2. 下記「ChatGPT への指示文」をコピーし、末尾に GitHub URL または result.md 全文を追記して送信する
 3. ChatGPT の出力を確認し、問題なければ result.md の status を `reviewed` に変更する
 4. task.md の status を `done` にして archive へ移動する
 

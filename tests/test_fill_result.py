@@ -170,3 +170,16 @@ class TestDryRunCLI:
         self._run(["--files", "rakuten_client.py", "--output", str(out)])
         text = out.read_text(encoding="utf-8")
         assert "status: review-pending" in text
+
+    def test_print_chat_prompt_contains_url(self):
+        """--print-chat-prompt の stdout に GitHub URL が含まれること。"""
+        result = self._run(["--print-chat-prompt"])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "github.com/YoheiUmeda/rakuten_amazon" in result.stdout
+        assert "result.md" in result.stdout
+
+    def test_print_chat_prompt_contains_instruction(self):
+        """--print-chat-prompt の stdout にレビュー指示文が含まれること。"""
+        result = self._run(["--print-chat-prompt"])
+        assert "secrets" in result.stdout
+        assert "承認可否" in result.stdout
