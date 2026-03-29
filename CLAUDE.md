@@ -16,6 +16,7 @@ Main goals:
 - Show candidates in UI
 
 ## Working rules
+- Before starting a task from docs/handoff/task.md, confirm status: approved
 - One session, one theme
 - First, inspect current state only
 - Always specify target files
