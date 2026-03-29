@@ -18,6 +18,7 @@ Main goals:
 ## Working rules
 - Before starting a task from docs/handoff/task.md, confirm status: approved
 - One session, one theme
+- Run /clear between themes; run /compact when context grows long (Pro/Max: check /stats)
 - First, inspect current state only
 - Always specify target files
 - Show diff plan before editing
@@ -25,6 +26,12 @@ Main goals:
 - Start a new thread after one theme is closed
 - Use only necessary logs/snippets
 - Extra usage is the last resort
+
+## Lightweight flow (plan mode optional)
+All of the following must hold:
+- ≤1 file changed, ≤10 lines diff
+- No risk to fee / pass_filter / secrets / credential handling
+- Existing tests clearly not broken
 
 ## Safety rules
 - Never commit secrets
@@ -67,7 +74,7 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review \
 # full-step（API 呼び出し・review_reply.md 生成）
 venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --task "タスク説明" --staged \
-  --test-cmd "venv/Scripts/python -m pytest tests/ -v" --run-tests
+  --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" --run-tests
 
 # 実行履歴を確認
 venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
@@ -86,3 +93,10 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 
 ## Handoff result
 - After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
+
+## Compact instructions
+When compacting, preserve these constraints:
+- fee=None must never be treated as 0
+- pass_filter must stay on the safe side
+- All requests.get calls must include timeout=(10, 30)
+- No secrets in commits
