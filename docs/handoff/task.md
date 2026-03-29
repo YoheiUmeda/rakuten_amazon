@@ -1,8 +1,8 @@
 ---
-task_id: ""
-title: ""
-slug: ""
-status: draft
+task_id: "0001"
+title: "README ローカル起動手順に Windows 補足を追加"
+slug: "readme-windows-setup-note"
+status: pending
 # status の定義:
 #   draft   : ローカルのみ。secrets_checked: false のまま push 禁止。
 #   pending : secrets確認済み・GitHub掲載済み・ChatGPTレビュー待ち。
@@ -10,8 +10,8 @@ status: draft
 #   done    : 完了。docs/handoff/archive/ へ移動する。
 approved_at: null
 version: 1
-updated: YYYY-MM-DD
-secrets_checked: false
+updated: 2026-03-29
+secrets_checked: true
 # secrets_checked: false のまま push しないこと。
 # push 前に以下を確認し true に変更する:
 #   - .env の内容が含まれていないか
@@ -20,20 +20,24 @@ secrets_checked: false
 ---
 
 <!-- 正本: main ブランチの docs/handoff/task.md -->
-<!-- GitHub URL: https://github.com/<owner>/<repo>/blob/main/docs/handoff/task.md -->
+<!-- GitHub URL: https://github.com/YoheiUmeda/rakuten_amazon/blob/main/docs/handoff/task.md -->
 
 ## タスク
-
+README.md のバックエンド起動手順（`source venv/bin/activate`）の下に、
+Windows 環境向けの補足コマンドを1行追加する。
 
 ## 背景と目的
-
+handoff MVP の運用テストを兼ねた最小変更。
+Linux/Mac 向けの `source` コマンドのみ記載されており、
+Windows では `venv\Scripts\activate` が正しいため補足する。
 
 ## 実施条件・制約
--
+- README.md の該当箇所のみ変更する
+- コードロジック・設定ファイルには触れない
+- 変更は1〜2行以内にする
 
 ## raw evidence
-<!-- diff / test_output / reject_log のみ。secrets を含めないこと。 -->
-
+（変更前後の diff は作業後に確認）
 
 ## 除外確認
 - .env / APIキー / トークン: 未含有（確認済み）
