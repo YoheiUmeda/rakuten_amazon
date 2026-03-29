@@ -83,3 +83,6 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 - 無関係なファイルを staged に混ぜたまま full-step を実行しない
 - 巨大差分（数百行以上）でいきなり full-step を回さない（save-only で確認してから）
 - `--test-cmd` の引数に secrets を含めない
+
+## Handoff result
+- After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
