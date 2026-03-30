@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -26,6 +27,17 @@ SOFT_LIMIT = 10
 def _now_jst() -> str:
     jst = timezone(timedelta(hours=9))
     return datetime.now(jst).isoformat(timespec="seconds")
+
+
+def _git_short_hash() -> str:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        )
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
 
 
 def load_state() -> dict:
@@ -49,17 +61,22 @@ def cmd_start(args: argparse.Namespace) -> int:
         print("  続行するには先に done / ng / stop で閉じてください")
         return 1
     cycle_id = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d-%H%M%S")
+    base_commit = _git_short_hash()
     state = {
         "cycle_id": cycle_id,
         "goal": args.goal,
         "status": "in_progress",
         "loop_count": 0,
+        "base_commit": base_commit,
+        "last_good_commit": None,
         "stop_reason": None,
+        "ng_history": [],
         "loops": [],
     }
     save_state(state)
     print(f"[OK] cycle started: {cycle_id}")
     print(f"     goal: {args.goal}")
+    print(f"     base_commit: {base_commit or '(none)'}")
     return 0
 
 
@@ -72,18 +89,22 @@ def cmd_record(args: argparse.Namespace) -> int:
         print(f"[ERROR] status が in_progress ではありません: {state.get('status')}")
         return 1
 
+    pre_commit = _git_short_hash()
     loop_id = state["loop_count"] + 1
     state["loop_count"] = loop_id
     state["loops"].append({
         "loop_id": loop_id,
         "timestamp": _now_jst(),
+        "pre_commit": pre_commit,
         "commit": args.commit or "",
         "changed_files": args.files or [],
         "test_result": args.test,
         "summary": args.summary or "",
     })
+    if args.test == "pass":
+        state["last_good_commit"] = args.commit or pre_commit
     save_state(state)
-    print(f"[OK] loop {loop_id} recorded  test={args.test}  commit={args.commit or '(none)'}")
+    print(f"[OK] loop {loop_id} recorded  test={args.test}  commit={args.commit or '(none)'}  pre={pre_commit or '(none)'}")
     if loop_id > SOFT_LIMIT:
         print(f"[WARNING] loop_count ({loop_id}) がソフトリミット ({SOFT_LIMIT}) を超えました。人間確認を推奨します")
     return 0
@@ -94,10 +115,14 @@ def cmd_ng(args: argparse.Namespace) -> int:
     if not state:
         print("[ERROR] サイクルが開始されていません")
         return 1
+    reason = args.reason or ""
+    state["stop_reason"] = reason
+    if "ng_history" not in state:
+        state["ng_history"] = []
+    state["ng_history"].append({"timestamp": _now_jst(), "reason": reason})
     state["status"] = "in_progress"
-    state["stop_reason"] = args.reason or ""
     save_state(state)
-    print(f"[OK] NG recorded. reason: {args.reason}")
+    print(f"[OK] NG recorded (#{len(state['ng_history'])}). reason: {reason}")
     print("     次のループへ進んでください")
     return 0
 
@@ -132,17 +157,25 @@ def cmd_status(args: argparse.Namespace) -> int:
     if not state:
         print("[INFO] サイクルなし (.ai/state/cycle_state.json が存在しません)")
         return 0
-    print(f"cycle_id  : {state.get('cycle_id')}")
-    print(f"goal      : {state.get('goal')}")
-    print(f"status    : {state.get('status')}")
-    print(f"loop_count: {state.get('loop_count', 0)}")
+    print(f"cycle_id        : {state.get('cycle_id')}")
+    print(f"goal            : {state.get('goal')}")
+    print(f"status          : {state.get('status')}")
+    print(f"loop_count      : {state.get('loop_count', 0)}")
+    print(f"base_commit     : {state.get('base_commit') or '(none)'}")
+    print(f"last_good_commit: {state.get('last_good_commit') or '(none)'}")
     if state.get("stop_reason"):
-        print(f"stop_reason: {state['stop_reason']}")
+        print(f"stop_reason     : {state['stop_reason']}")
+    ng_hist = state.get("ng_history", [])
+    if ng_hist:
+        print(f"ng_history ({len(ng_hist)}):")
+        for h in ng_hist:
+            print(f"  {h['timestamp']}  {h['reason']}")
     loops = state.get("loops", [])
     if loops:
         print("loops:")
         for lp in loops:
-            print(f"  [{lp['loop_id']}] {lp['timestamp']}  test={lp['test_result']}  commit={lp['commit']}  {lp['summary']}")
+            print(f"  [{lp['loop_id']}] {lp['timestamp']}  test={lp['test_result']}"
+                  f"  pre={lp.get('pre_commit','?')}→{lp['commit']}  {lp['summary']}")
     return 0
 
 

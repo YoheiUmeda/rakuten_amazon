@@ -46,6 +46,14 @@ def build_summary(state: dict) -> str:
                 all_files.append(f)
                 seen.add(f)
 
+    # NG 履歴
+    ng_history = state.get("ng_history", [])
+
+    # rollback 情報
+    base_commit = state.get("base_commit") or "(none)"
+    last_good_commit = state.get("last_good_commit") or "(none)"
+    last_pre_commit = loops[-1].get("pre_commit", "(none)") if loops else "(none)"
+
     # 懸念点
     concerns: list[str] = []
     if test_counts["fail"] > 0:
@@ -54,14 +62,16 @@ def build_summary(state: dict) -> str:
         concerns.append(f"ループ数が多い ({loop_count} 回、推奨 {SOFT_LIMIT} 以下)")
     if status == "stopped":
         concerns.append(f"サイクルが停止しました: {stop_reason}")
+    for h in ng_history:
+        concerns.append(f"NG 指摘 [{h['timestamp'][:19]}]: {h['reason']}")
 
-    # 次の判断
+    # 次の判断（非エンジニア向け）
     if status == "done":
-        next_action = "✅ push 可能 — `git push origin main` を実行してください"
+        next_action = "✅ 承認済み — 担当者が本番反映を実行します"
     elif status == "stopped":
-        next_action = "⛔ サイクル停止 — 原因を確認して再開するか中止してください"
+        next_action = "⛔ 作業停止 — 担当者に原因と対応方針を確認してください"
     else:
-        next_action = "⏳ レビュー待ち — OK なら `cycle_manager done`、NG なら `cycle_manager ng --reason \"...\"` を実行"
+        next_action = "⏳ 確認中 — OK の場合: 担当者に承認を伝えてください / NG の場合: 修正理由を担当者に伝えて再依頼してください"
 
     # ループ詳細
     loop_lines = []
@@ -104,6 +114,11 @@ def build_summary(state: dict) -> str:
 - pass: {test_counts['pass']}
 - fail: {test_counts['fail']}
 - skip: {test_counts['skip']}
+
+## rollback 情報（問題発生時に戻せる地点）
+- サイクル開始前: `{base_commit}` （全変更を戻す場合）
+- 最後にテスト通過: `{last_good_commit}` （直近の安全な状態）
+- 直前ループ開始前: `{last_pre_commit}` （最後のループだけ戻す場合）
 
 ## 懸念点
 {concerns_text}
