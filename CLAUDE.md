@@ -146,6 +146,28 @@ scripts\run_verify_copy_review_request.bat
 - BOM・CRLF/LF・末尾改行を無視して実質一致 / 不一致を判定
 - 成功: exit 0、失敗: exit 1（差分情報を表示）
 
+## Auto-allow scope (ai_orchestrator / automation work)
+
+Pre-approved via .claude/settings.local.json (no per-call confirmation):
+- Edit/Write: `tools/ai_orchestrator/**`, `tests/test_cycle_manager.py`,
+  `tests/test_loop_runner.py`, `tests/test_cycle_to_review_request.py`,
+  `tests/test_run_cycle_review.py`, `docs/automation/auto_mode_spec.md`, `CLAUDE.md`
+- Bash (pytest): `venv/Scripts/python -m pytest tests/test_cycle_manager* *` など
+- Bash (CLI): `venv/Scripts/python -m tools.ai_orchestrator.*`
+- Bash (git): `git add` (上記パス限定), `git log/status/diff`
+- Bash (safe commit): `venv/Scripts/python -m tools.ai_orchestrator.safe_commit *`
+
+Important files (fee/pass_filter/credentials) は従来通り都度承認。
+git commit (raw) は auto-allow 対象外。safe_commit を使うこと。
+git push は都度承認。
+
+## safe_commit (安全柵付きコミット)
+```bash
+venv/Scripts/python -m tools.ai_orchestrator.safe_commit -m "feat: ..."
+```
+abort 条件: staged なし / Important files 混入 / secrets ファイル名 / message 空
+scope 外ファイルは WARNING のみ（abort しない）
+
 ## Compact instructions
 When compacting, preserve these constraints:
 - fee=None must never be treated as 0
