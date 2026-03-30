@@ -4,5 +4,9 @@ if (-not (Test-Path $path)) {
     Write-Error "review_request.md が見つかりません: $path"
     exit 1
 }
+$info = Get-Item $path
+Write-Host "更新時刻: $($info.LastWriteTime)"
+Get-Content $path -TotalCount 5 | ForEach-Object { Write-Host $_ }
+Write-Host "---"
 Get-Content $path -Raw | Set-Clipboard
 Write-Host "[OK] クリップボードにコピーしました: $path"

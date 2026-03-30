@@ -293,3 +293,10 @@ class TestDryRunCLI:
         self._run(["--print-chat-prompt", "--review-request-output", str(out)])
         text = out.read_text(encoding="utf-8")
         assert "Approve" in text
+
+    def test_review_request_output_contains_metadata(self, tmp_path):
+        out = tmp_path / "review_request.md"
+        self._run(["--print-chat-prompt", "--review-request-output", str(out)])
+        text = out.read_text(encoding="utf-8")
+        assert "generated_at:" in text
+        assert "template_version:" in text

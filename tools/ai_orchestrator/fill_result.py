@@ -95,6 +95,19 @@ def _read_task_id() -> str:
     return ""
 
 
+def _git_short_hash() -> str:
+    """git の short hash を返す。取得できなければ ''。"""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        )
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
 def _now_jst() -> str:
     jst = timezone(timedelta(hours=9))
     return datetime.now(jst).strftime("%Y-%m-%dT%H:%M:%S+09:00")
@@ -202,9 +215,16 @@ def main() -> None:
     if args.print_chat_prompt:
         content = f"{CHAT_PROMPT_BODY}\n\n{RESULT_MD_URL}"
         if args.review_request_output:
+            header = (
+                f"<!-- review_request\n"
+                f"     generated_at: {_now_jst()}\n"
+                f"     task_id: {_read_task_id() or '(none)'}\n"
+                f"     template_version: 1\n"
+                f"     commit: {_git_short_hash() or '(none)'} -->\n\n"
+            )
             out = Path(args.review_request_output)
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(content, encoding="utf-8")
+            out.write_text(header + content, encoding="utf-8")
             print(f"[OK] レビュー依頼文を出力: {out}")
         else:
             print(content)
