@@ -111,7 +111,31 @@ python -m tools.ai_orchestrator.cycle_manager status
 # ng    → deprecation warning 付きで旧挙動のまま残す（stop_reason も更新）
 ```
 
-## Phase 2 以降（未実装）
+## loop_runner CLI（Phase 2 実装済み）
+
+record → submit → review_summary を1コマンドで実行する。
+
+```bash
+# 新サイクル開始 + テスト実行（state 不在時は --goal 必須）
+python -m tools.ai_orchestrator.loop_runner \
+  --goal "XX を修正" \
+  --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" \
+  --files src/foo.py \
+  --summary "修正完了"
+
+# in_progress サイクル継続（--goal 省略可）
+python -m tools.ai_orchestrator.loop_runner \
+  --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" \
+  --files src/foo.py \
+  --summary "再修正完了"
+```
+
+動作:
+- pre-flight: untracked を含む dirty check（`git status --porcelain`）
+- pass → record → submit → review_summary 生成 → exit 0
+- fail → record のみ → exit 1（submit しない）
+
+## Phase 3 以降（未実装）
 
 - 修正ループの自動継続
 - OpenAI / Claude による自動レビュー（orchestrator.py との統合）
