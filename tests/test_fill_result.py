@@ -275,3 +275,21 @@ class TestDryRunCLI:
         result = self._run(["--print-chat-prompt"])
         assert "secrets" in result.stdout
         assert "Approve" in result.stdout
+
+    def test_review_request_output_creates_file(self, tmp_path):
+        out = tmp_path / "review_request.md"
+        result = self._run(["--print-chat-prompt", "--review-request-output", str(out)])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert out.exists()
+
+    def test_review_request_output_contains_url(self, tmp_path):
+        out = tmp_path / "review_request.md"
+        self._run(["--print-chat-prompt", "--review-request-output", str(out)])
+        text = out.read_text(encoding="utf-8")
+        assert "github.com/YoheiUmeda/rakuten_amazon" in text
+
+    def test_review_request_output_contains_instruction(self, tmp_path):
+        out = tmp_path / "review_request.md"
+        self._run(["--print-chat-prompt", "--review-request-output", str(out)])
+        text = out.read_text(encoding="utf-8")
+        assert "Approve" in text

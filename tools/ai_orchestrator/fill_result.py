@@ -195,10 +195,19 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="stdout に出力のみ、ファイル書き込みなし")
     parser.add_argument("--print-chat-prompt", action="store_true", dest="print_chat_prompt",
                         help="ChatGPT にそのまま貼れるレビュー依頼文を stdout に出力して終了")
+    parser.add_argument("--review-request-output", default="", dest="review_request_output",
+                        metavar="PATH", help="レビュー依頼文をファイルに書き出す（省略時は stdout のみ）")
     args = parser.parse_args()
 
     if args.print_chat_prompt:
-        print(f"{CHAT_PROMPT_BODY}\n\n{RESULT_MD_URL}")
+        content = f"{CHAT_PROMPT_BODY}\n\n{RESULT_MD_URL}"
+        if args.review_request_output:
+            out = Path(args.review_request_output)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(content, encoding="utf-8")
+            print(f"[OK] レビュー依頼文を出力: {out}")
+        else:
+            print(content)
         return
 
     task_id = _read_task_id()
