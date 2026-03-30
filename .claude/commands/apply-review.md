@@ -14,7 +14,7 @@
    ```
 3. **Approve の場合:**
    - result.md の `status: review-pending` → `status: reviewed` に自動更新済み
-   - task.md の status を `done` にして `docs/handoff/archive/` へ移動する
+   - （手動）task.md の status を `done` にして `docs/handoff/archive/` へ移動する
 4. **Request changes の場合:**
    - スクリプトが Issues / Required changes を出力する
    - 変更を実施後、fill_result → レビュー依頼を再実施する
