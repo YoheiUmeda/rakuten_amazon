@@ -133,7 +133,18 @@ python -m tools.ai_orchestrator.loop_runner \
 動作:
 - pre-flight: untracked を含む dirty check（`git status --porcelain`）
 - pass → record → submit → review_summary 生成 → exit 0
-- fail → record のみ → exit 1（submit しない）
+- pass + `--auto-review` → 上記後に run_cycle_review を自動実行 → exit 0
+- fail → record のみ → exit 1（submit しない・auto-review にも進まない）
+
+```bash
+# --auto-review: submit 後に run_cycle_review を自動実行
+python -m tools.ai_orchestrator.loop_runner \
+  --goal "XX を修正" \
+  --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" \
+  --files src/foo.py \
+  --summary "修正完了" \
+  --auto-review
+```
 
 ## cycle_to_review_request CLI（Phase 2 実装済み）
 

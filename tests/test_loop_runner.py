@@ -41,11 +41,9 @@ def dirty_tree(monkeypatch):
 
 
 def _make_args(**kwargs):
-    defaults = dict(goal="", test_cmd="true", files=["f.py"], summary="ok")
+    defaults = dict(goal="", test_cmd="true", files=["f.py"], summary="ok", auto_review=False)
     defaults.update(kwargs)
-    ns = Namespace(**defaults)
-    # argparse は test-cmd をアンダースコアに変換するが test_cmd で渡す
-    return ns
+    return Namespace(**defaults)
 
 
 def _fake_subprocess_pass(cmd, shell=False, cwd=None):
@@ -54,6 +52,13 @@ def _fake_subprocess_pass(cmd, shell=False, cwd=None):
 
 def _fake_subprocess_fail(cmd, shell=False, cwd=None):
     return SimpleNamespace(returncode=1)
+
+
+_RCR_MODULE = "tools.ai_orchestrator.run_cycle_review"
+
+
+def _is_rcr(cmd) -> bool:
+    return _RCR_MODULE in cmd
 
 
 # ── dirty check ──────────────────────────────────────────────────────────
@@ -142,6 +147,91 @@ def test_fail_no_submit(clean_tree, fixed_hash, monkeypatch, capsys):
     assert state["status"] == "in_progress"
 
 
+# ── --auto-review ─────────────────────────────────────────────────────────
+
+def test_auto_review_not_called_by_default(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """--auto-review なし → run_cycle_review を呼ばない。"""
+    calls: list = []
+
+    def fake_sub(cmd, shell=False, cwd=None, **kw):
+        calls.append(list(cmd) if isinstance(cmd, list) else cmd)
+        return SimpleNamespace(returncode=0)
+
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "last_good_commit": None, "loops": [],
+    })
+    monkeypatch.setattr(lr, "OUTPUT_PATH", tmp_path / "review_summary.md")
+    monkeypatch.setattr(lr.subprocess, "run", fake_sub)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=False))
+    assert exc.value.code == 0
+    assert not any(_is_rcr(c) for c in calls)
+
+
+def test_auto_review_pass(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """--auto-review + pass → run_cycle_review を呼ぶ、exit 0。"""
+    calls: list = []
+
+    def fake_sub(cmd, shell=False, cwd=None, **kw):
+        calls.append(list(cmd) if isinstance(cmd, list) else cmd)
+        return SimpleNamespace(returncode=0)
+
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "last_good_commit": None, "loops": [],
+    })
+    monkeypatch.setattr(lr, "OUTPUT_PATH", tmp_path / "review_summary.md")
+    monkeypatch.setattr(lr.subprocess, "run", fake_sub)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True))
+    assert exc.value.code == 0
+    assert any(_is_rcr(c) for c in calls)
+    assert "run_cycle_review 完了" in capsys.readouterr().out
+
+
+def test_auto_review_fail_no_call(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """fail 時は --auto-review があっても run_cycle_review を呼ばない。"""
+    calls: list = []
+
+    def fake_sub(cmd, shell=False, cwd=None, **kw):
+        calls.append(list(cmd) if isinstance(cmd, list) else cmd)
+        return SimpleNamespace(returncode=1)
+
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "last_good_commit": None, "loops": [],
+    })
+    monkeypatch.setattr(lr.subprocess, "run", fake_sub)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True))
+    assert exc.value.code == 1
+    assert not any(_is_rcr(c) for c in calls)
+
+
+def test_auto_review_subprocess_fails(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """run_cycle_review が exit 1 → loop_runner も exit 1。"""
+    def fake_sub(cmd, shell=False, cwd=None, **kw):
+        if _is_rcr(list(cmd) if isinstance(cmd, list) else [cmd]):
+            return SimpleNamespace(returncode=1)
+        return SimpleNamespace(returncode=0)
+
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "last_good_commit": None, "loops": [],
+    })
+    monkeypatch.setattr(lr, "OUTPUT_PATH", tmp_path / "review_summary.md")
+    monkeypatch.setattr(lr.subprocess, "run", fake_sub)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True))
+    assert exc.value.code == 1
+    assert "run_cycle_review 失敗" in capsys.readouterr().out
+
+
 # ── 無効 status ───────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("bad_status", ["pending_review", "done", "stopped"])
@@ -205,6 +295,21 @@ def _execute_loop_runner(lr_mod, args):
         lr_mod.OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
         lr_mod.OUTPUT_PATH.write_text(content, encoding="utf-8")
         print(f"[OK] review_summary 生成: {lr_mod.OUTPUT_PATH}")
+
+        auto_review = getattr(args, "auto_review", False)
+        if auto_review:
+            print("[INFO] --auto-review: run_cycle_review を実行します")
+            venv_py = cm.REPO_ROOT / "venv" / "Scripts" / "python.exe"
+            py = str(venv_py) if venv_py.exists() else __import__("sys").executable
+            r = lr_mod.subprocess.run(
+                [py, "-m", "tools.ai_orchestrator.run_cycle_review"],
+                cwd=cm.REPO_ROOT,
+            )
+            if r.returncode != 0:
+                print("[ERROR] run_cycle_review 失敗")
+                raise SystemExit(1)
+            print("[OK] run_cycle_review 完了")
+
         raise SystemExit(0)
     else:
         print("[ERROR] テスト失敗。修正後に再実行してください")

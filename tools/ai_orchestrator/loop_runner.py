@@ -6,7 +6,9 @@
   [pre-flight dirty check]
   → [state 確認 / 新規 start]
   → [テスト実行]
-  → pass: record → submit → review_summary 生成 → exit 0
+  → pass: record → submit → review_summary 生成
+          [--auto-review 時] → run_cycle_review 実行
+          → exit 0
   → fail: record → exit 1  (submit しない)
 
 usage:
@@ -14,7 +16,8 @@ usage:
         --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" \\
         --files src/foo.py src/bar.py \\
         --summary "foo を修正" \\
-        [--goal "XX を修正"]   # state 不在時のみ必須
+        [--goal "XX を修正"]       # state 不在時のみ必須
+        [--auto-review]            # submit 成功後に run_cycle_review を自動実行
 """
 from __future__ import annotations
 
@@ -53,6 +56,8 @@ def main() -> None:
     parser.add_argument("--test-cmd", required=True, help="テスト実行コマンド")
     parser.add_argument("--files", nargs="+", required=True, help="変更ファイル一覧")
     parser.add_argument("--summary", required=True, help="このループの1行要約")
+    parser.add_argument("--auto-review", action="store_true",
+                        help="submit 成功後に run_cycle_review を自動実行する")
     args = parser.parse_args()
 
     # ── pre-flight: dirty check ───────────────────────────────────────────
@@ -106,6 +111,20 @@ def main() -> None:
         OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
         OUTPUT_PATH.write_text(content, encoding="utf-8")
         print(f"[OK] review_summary 生成: {OUTPUT_PATH}")
+
+        if args.auto_review:
+            print("[INFO] --auto-review: run_cycle_review を実行します")
+            venv_py = REPO_ROOT / "venv" / "Scripts" / "python.exe"
+            py = str(venv_py) if venv_py.exists() else sys.executable
+            r = subprocess.run(
+                [py, "-m", "tools.ai_orchestrator.run_cycle_review"],
+                cwd=REPO_ROOT,
+            )
+            if r.returncode != 0:
+                print("[ERROR] run_cycle_review 失敗")
+                sys.exit(1)
+            print("[OK] run_cycle_review 完了")
+
         sys.exit(0)
     else:
         print("[ERROR] テスト失敗。修正後に再実行してください")
