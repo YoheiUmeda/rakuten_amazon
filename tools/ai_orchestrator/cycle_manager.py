@@ -56,9 +56,13 @@ def save_state(state: dict) -> None:
 
 def cmd_start(args: argparse.Namespace) -> int:
     state = load_state()
-    if state.get("status") in ("in_progress", "pending_review"):
-        print(f"[WARN] サイクルがすでに {state.get('status')} です (goal: {state.get('goal')})")
-        print("  続行するには先に approve / reject / stop で閉じてください")
+    current = state.get("status")
+    if current in ("in_progress", "pending_review"):
+        print(f"[WARN] サイクルがすでに {current} です (goal: {state.get('goal')})")
+        if current == "in_progress":
+            print("  続行するには先に submit / stop で閉じてください")
+        else:
+            print("  続行するには先に approve / reject / stop で閉じてください")
         return 1
     cycle_id = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d-%H%M%S")
     base_commit = _git_short_hash()

@@ -91,17 +91,24 @@ python -m tools.ai_orchestrator.cycle_manager start --goal "XX を修正"
 python -m tools.ai_orchestrator.cycle_manager record \
   --commit abc1234 --files f1.py f2.py --test pass --summary "修正完了"
 
+# レビュー提出（in_progress + loops>=1 が必要）
+python -m tools.ai_orchestrator.cycle_manager submit
+
 # レビュードキュメント生成 → docs/handoff/review_summary.md
 python -m tools.ai_orchestrator.review_summary
 
-# NG 指示（次ループへ）
-python -m tools.ai_orchestrator.cycle_manager ng --reason "テスト失敗: XX"
+# 人間が確認後: 承認
+python -m tools.ai_orchestrator.cycle_manager approve
 
-# サイクル完了
-python -m tools.ai_orchestrator.cycle_manager done
+# 人間が確認後: 差し戻し（reason 必須、次ループへ）
+python -m tools.ai_orchestrator.cycle_manager reject --reason "修正理由"
 
 # state 確認
 python -m tools.ai_orchestrator.cycle_manager status
+
+# 後方互換（非推奨）
+# done  → approve の alias
+# ng    → deprecation warning 付きで旧挙動のまま残す（stop_reason も更新）
 ```
 
 ## Phase 2 以降（未実装）
