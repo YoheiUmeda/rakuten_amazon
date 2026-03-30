@@ -29,7 +29,7 @@ Main goals:
 
 ## Lightweight flow (skip plan mode)
 All of the following must hold:
-- ≤1 file changed, ≤10 lines diff
+- 1 file only, ≤10 lines diff
 - No risk to fee / pass_filter / secrets / credential handling
 - Existing tests clearly not broken
 
