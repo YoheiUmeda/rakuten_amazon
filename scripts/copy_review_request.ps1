@@ -6,7 +6,7 @@ if (-not (Test-Path $path)) {
 }
 $info = Get-Item $path
 Write-Host "更新時刻: $($info.LastWriteTime)"
-Get-Content $path -TotalCount 5 | ForEach-Object { Write-Host $_ }
+Get-Content $path -TotalCount 5 -Encoding utf8 | ForEach-Object { Write-Host $_ }
 Write-Host "---"
-Get-Content $path -Raw | Set-Clipboard
+Get-Content $path -Raw -Encoding utf8 | Set-Clipboard
 Write-Host "[OK] クリップボードにコピーしました: $path"
