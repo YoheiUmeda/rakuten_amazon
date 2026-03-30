@@ -227,6 +227,12 @@ def cmd_status(args: argparse.Namespace) -> int:
             print(f"  {h['timestamp']}  {h['reason']}")
     loops = state.get("loops", [])
     if loops:
+        lp = loops[-1]
+        files_str = ", ".join(lp.get("changed_files", [])) or "(なし)"
+        print("latest loop:")
+        print(f"  summary      : {lp.get('summary', '')}")
+        print(f"  test_result  : {lp['test_result']}")
+        print(f"  changed_files: {files_str}")
         print("loops:")
         for lp in loops:
             print(f"  [{lp['loop_id']}] {lp['timestamp']}  test={lp['test_result']}"

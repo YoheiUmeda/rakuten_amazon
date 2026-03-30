@@ -144,6 +144,39 @@ def test_reject_no_reason(isolated_state):
     assert ret == 1
 
 
+# ── status: latest loop ───────────────────────────────────────────────────
+
+def test_status_latest_loop(isolated_state, capsys):
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 1,
+        "base_commit": "abc", "last_good_commit": None,
+        "loops": [{
+            "loop_id": 1, "timestamp": "2026-01-01T00:00:00+09:00",
+            "pre_commit": "aaa", "commit": "bbb",
+            "changed_files": ["foo.py", "bar.py"],
+            "test_result": "pass", "summary": "修正完了",
+        }],
+    })
+    ret = cm.cmd_status(_make_args())
+    assert ret == 0
+    out = capsys.readouterr().out
+    assert "latest loop:" in out
+    assert "修正完了" in out
+    assert "pass" in out
+    assert "foo.py" in out
+
+
+def test_status_no_loops(isolated_state, capsys):
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "base_commit": "abc", "last_good_commit": None, "loops": [],
+    })
+    ret = cm.cmd_status(_make_args())
+    assert ret == 0
+    out = capsys.readouterr().out
+    assert "latest loop:" not in out
+
+
 # ── stop ─────────────────────────────────────────────────────────────────
 
 def test_stop_ok(isolated_state):
