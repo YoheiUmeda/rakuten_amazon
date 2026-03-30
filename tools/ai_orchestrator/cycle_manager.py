@@ -110,16 +110,72 @@ def cmd_record(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_submit(args: argparse.Namespace) -> int:
+    state = load_state()
+    if not state:
+        print("[ERROR] サイクルが開始されていません")
+        return 1
+    if state.get("status") != "in_progress":
+        print(f"[ERROR] submit は in_progress の時のみ実行できます (current: {state.get('status')})")
+        return 1
+    if not state.get("loops"):
+        print("[ERROR] ループが1件もありません。先に record を実行してください")
+        return 1
+    state["status"] = "pending_review"
+    save_state(state)
+    print(f"[OK] status: pending_review")
+    print("     review_summary を生成してレビューを依頼してください:")
+    print("       python -m tools.ai_orchestrator.review_summary")
+    return 0
+
+
+def cmd_approve(args: argparse.Namespace) -> int:
+    state = load_state()
+    if not state:
+        print("[ERROR] サイクルが開始されていません")
+        return 1
+    if state.get("status") != "pending_review":
+        print(f"[ERROR] approve は pending_review の時のみ実行できます (current: {state.get('status')})")
+        return 1
+    state["status"] = "done"
+    save_state(state)
+    print(f"[OK] approved. cycle done: {state.get('cycle_id')}")
+    print("     push 候補です。git push origin main を実行してください")
+    return 0
+
+
+def cmd_reject(args: argparse.Namespace) -> int:
+    state = load_state()
+    if not state:
+        print("[ERROR] サイクルが開始されていません")
+        return 1
+    if state.get("status") != "pending_review":
+        print(f"[ERROR] reject は pending_review の時のみ実行できます (current: {state.get('status')})")
+        return 1
+    reason = args.reason or ""
+    if "ng_history" not in state:
+        state["ng_history"] = []
+    state["ng_history"].append({"timestamp": _now_jst(), "reason": reason})
+    state["last_reject_reason"] = reason
+    state["status"] = "in_progress"
+    save_state(state)
+    print(f"[OK] rejected (#{len(state['ng_history'])}). reason: {reason}")
+    print("     修正後 record → submit で再提出してください")
+    return 0
+
+
 def cmd_ng(args: argparse.Namespace) -> int:
+    import warnings
+    print("[DEPRECATED] ng は非推奨です。reject を使用してください", file=sys.stderr)
     state = load_state()
     if not state:
         print("[ERROR] サイクルが開始されていません")
         return 1
     reason = args.reason or ""
-    state["stop_reason"] = reason
     if "ng_history" not in state:
         state["ng_history"] = []
     state["ng_history"].append({"timestamp": _now_jst(), "reason": reason})
+    state["stop_reason"] = reason
     state["status"] = "in_progress"
     save_state(state)
     print(f"[OK] NG recorded (#{len(state['ng_history'])}). reason: {reason}")
@@ -128,16 +184,8 @@ def cmd_ng(args: argparse.Namespace) -> int:
 
 
 def cmd_done(args: argparse.Namespace) -> int:
-    state = load_state()
-    if not state:
-        print("[ERROR] サイクルが開始されていません")
-        return 1
-    state["status"] = "done"
-    state["stop_reason"] = None
-    save_state(state)
-    print(f"[OK] cycle done: {state.get('cycle_id')}")
-    print("     push 候補です。git push origin main を実行してください")
-    return 0
+    """approve の alias。"""
+    return cmd_approve(args)
 
 
 def cmd_stop(args: argparse.Namespace) -> int:
@@ -195,6 +243,13 @@ def main() -> None:
     p_record.add_argument("--test", choices=["pass", "fail", "skip"], required=True)
     p_record.add_argument("--summary", default="")
 
+    sub.add_parser("submit")
+
+    sub.add_parser("approve")
+
+    p_reject = sub.add_parser("reject")
+    p_reject.add_argument("--reason", default="")
+
     p_ng = sub.add_parser("ng")
     p_ng.add_argument("--reason", default="")
 
@@ -212,6 +267,9 @@ def main() -> None:
     dispatch = {
         "start": cmd_start,
         "record": cmd_record,
+        "submit": cmd_submit,
+        "approve": cmd_approve,
+        "reject": cmd_reject,
         "ng": cmd_ng,
         "done": cmd_done,
         "stop": cmd_stop,
