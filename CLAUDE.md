@@ -115,6 +115,23 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 ## Handoff result
 - After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
 
+## Review flow (正式手順)
+```
+# 1. review_request 生成・verify・クリップボード載せ
+scripts\run_verify_copy_review_request.bat
+
+# 2. ChatGPT に貼り付け (Ctrl+V) → 返答をコピー
+
+# 3. review_reply.md に保存
+scripts\paste_review_reply.ps1
+
+# 4. result.md 更新
+venv/Scripts/python -m tools.ai_orchestrator.apply_review --dry-run
+venv/Scripts/python -m tools.ai_orchestrator.apply_review
+
+# 5. Approve なら task.md を done にして archive へ（手動）
+```
+
 ## クリップボード検証スクリプト
 
 `review_request.md` が正しくクリップボードへ転送されるかを検証する。
