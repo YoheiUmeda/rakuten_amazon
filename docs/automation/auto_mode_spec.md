@@ -156,9 +156,34 @@ python -m tools.ai_orchestrator.orchestrator \
 - goal が空 → exit 1
 - 全ループの changed_files が空 → exit 1
 
+## run_cycle_review CLI（Phase 2 接続拡張・実装済み）
+
+pending_review 状態を受けて review_request.json 生成 → orchestrator 呼び出しを1コマンドで実行する。
+loop_runner とは独立して動作する（loop_runner 実行後に手動で呼ぶ）。
+
+```bash
+# pending_review 後に実行
+python -m tools.ai_orchestrator.run_cycle_review \
+  [--test-cmd "venv/Scripts/python -m pytest tests/ -q"] \
+  [--model gpt-4o-mini]
+
+# orchestrator をスキップして review_request.json 確認のみ
+python -m tools.ai_orchestrator.run_cycle_review --dry-run
+```
+
+fail 方針:
+- OPENAI_API_KEY 未設定 → review_request.json 生成のみで exit 0（スキップ）
+- --dry-run → review_request.json 生成のみで exit 0（スキップ）
+- cycle_to_review_request 失敗 → exit 1
+- orchestrator 失敗（APIエラー等）→ exit 1
+
+成功ログ:
+- `[OK] review_request.json 生成完了` ← Step 1 完了
+- `[OK] review_reply.md 生成完了`     ← Step 2 完了（API 呼び出し含む）
+
 ## Phase 3 以降（未実装）
 
 - 修正ループの自動継続
-- loop_runner → cycle_to_review_request → orchestrator の一発実行
+- loop_runner → run_cycle_review の自動連結（1コマンド実行）
 - clipboard 経路の廃止
 - BAT スクリプトによるワンクリック起動
