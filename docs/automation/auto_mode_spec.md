@@ -135,9 +135,30 @@ python -m tools.ai_orchestrator.loop_runner \
 - pass → record → submit → review_summary 生成 → exit 0
 - fail → record のみ → exit 1（submit しない）
 
+## cycle_to_review_request CLI（Phase 2 実装済み）
+
+pending_review 状態の cycle_state.json を orchestrator.py が読める review_request.json に変換する。
+
+```bash
+# pending_review のときのみ実行可能
+python -m tools.ai_orchestrator.cycle_to_review_request \
+  [--test-cmd "venv/Scripts/python -m pytest tests/ -q"] \
+  [--output .ai/handoff/review_request.json]
+
+# 続けて orchestrator で OpenAI レビューを実行
+python -m tools.ai_orchestrator.orchestrator \
+  --input .ai/handoff/review_request.json \
+  --output docs/handoff/review_reply.md
+```
+
+制約:
+- status が pending_review 以外（in_progress / done / stopped）→ exit 1
+- goal が空 → exit 1
+- 全ループの changed_files が空 → exit 1
+
 ## Phase 3 以降（未実装）
 
 - 修正ループの自動継続
-- OpenAI / Claude による自動レビュー（orchestrator.py との統合）
+- loop_runner → cycle_to_review_request → orchestrator の一発実行
 - clipboard 経路の廃止
 - BAT スクリプトによるワンクリック起動
