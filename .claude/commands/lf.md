@@ -15,7 +15,7 @@ If any condition is in doubt, stop and use the normal flow.
 
 ## Steps
 1. Make the edit directly. Do not create or update a plan file.
-2. Run tests if applicable: `venv/Scripts/python -m pytest tests/ -q --tb=short`
+2. Run tests if applicable: `venv/Scripts/python -m pytest tests/ -q --tb=short` (doc-only: skip)
 3. If the result looks correct, commit: `git add <file> && git commit -m "<message>"`
 4. Report in exactly 3 lines:
    Changed: <file>
