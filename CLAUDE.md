@@ -27,11 +27,20 @@ Main goals:
 - Use only necessary logs/snippets
 - Extra usage is the last resort
 
-## Lightweight flow (plan mode optional)
+## Lightweight flow (skip plan mode)
 All of the following must hold:
 - ≤1 file changed, ≤10 lines diff
 - No risk to fee / pass_filter / secrets / credential handling
 - Existing tests clearly not broken
+
+Do not use /plan.
+Do not create or update a plan file.
+Implement directly.
+
+Report in 3 lines only:
+Changed: <file>
+Tests: pass/skip
+Commit: <hash>
 
 ## Safety rules
 - Never commit secrets
