@@ -9,7 +9,7 @@
 以下をユーザーに確認する（回答がなければデフォルトを使う）:
 - `task`: 今回のレビュー依頼の説明（必須）
 - `files`: 対象ファイル（省略時は git diff HEAD から自動取得）
-- `test-cmd`: テストコマンド（例: `python -m pytest tests/ -v`、Windows では後述の注意参照）
+- `test-cmd`: テストコマンド（例: `python -m pytest tests/ -q --tb=short`、Windows では後述の注意参照）
 - `related-code`: 関連コードファイル（省略可、複数指定で内容を取り込む）
 - `open-questions`: 未解決の疑問点（複数可）
 - `constraints`: 守るべき制約（複数可、デフォルト: "pass_filter / fee / profit ロジックには触れない"）
