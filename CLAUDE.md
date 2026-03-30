@@ -42,6 +42,18 @@ Changed: <file>
 Tests: pass/skip
 Commit: <hash>
 
+## Flow selection
+Use /lf when ALL hold:
+- 1 file only, ≤10 lines diff
+- Doc-only or equivalent small fix
+- No risk to fee / pass_filter / secrets / credential handling
+- Clean session (after /clear, no active plan file)
+
+Use normal flow when any applies:
+- Multiple files or broad impact
+- Design decisions required
+- Safety conditions touched (fee / pass_filter / secrets / credentials)
+
 ## Safety rules
 - Never commit secrets
 - Never edit .env directly without explicit instruction
