@@ -56,9 +56,9 @@ def save_state(state: dict) -> None:
 
 def cmd_start(args: argparse.Namespace) -> int:
     state = load_state()
-    if state.get("status") == "in_progress":
-        print(f"[WARN] サイクルがすでに in_progress です (goal: {state.get('goal')})")
-        print("  続行するには先に done / ng / stop で閉じてください")
+    if state.get("status") in ("in_progress", "pending_review"):
+        print(f"[WARN] サイクルがすでに {state.get('status')} です (goal: {state.get('goal')})")
+        print("  続行するには先に approve / reject / stop で閉じてください")
         return 1
     cycle_id = datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d-%H%M%S")
     base_commit = _git_short_hash()
@@ -153,6 +153,9 @@ def cmd_reject(args: argparse.Namespace) -> int:
         print(f"[ERROR] reject は pending_review の時のみ実行できます (current: {state.get('status')})")
         return 1
     reason = args.reason or ""
+    if not reason:
+        print("[ERROR] reject には --reason が必須です")
+        return 1
     if "ng_history" not in state:
         state["ng_history"] = []
     state["ng_history"].append({"timestamp": _now_jst(), "reason": reason})
