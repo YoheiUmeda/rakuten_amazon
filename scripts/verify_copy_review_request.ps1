@@ -35,7 +35,7 @@ $src  = Normalize (Get-Content $reviewRequestPath -Raw -Encoding utf8)
 $dump = Normalize $clipText
 
 if ($src -eq $dump) {
-    Write-Host "[OK] match: clipboard matches review_request.md"
+    Write-Host "[OK] match: clipboard matches review_request.md -- paste to ChatGPT now (Ctrl+V)"
     exit 0
 } else {
     Write-Error "[NG] mismatch"
