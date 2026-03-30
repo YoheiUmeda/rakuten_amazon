@@ -9,10 +9,10 @@ status: pending
 <!-- ChatGPT のレビュー結果をここに貼る -->
 <!-- 貼り終わったら /apply-review を実行する -->
 
-## 実行結果の要点
+## Decision
 
-## diff / テスト結果の確認
+## Issues
 
-## 懸念点（あれば）
+## Required changes
 
-## Approve / Request changes
+## Notes

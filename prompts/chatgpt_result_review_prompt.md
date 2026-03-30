@@ -34,19 +34,20 @@ venv/Scripts/python -m tools.ai_orchestrator.fill_result --print-chat-prompt
 - 未確定点・懸念は適切に記録されているか
 - 重点レビュー観点に回答できるか
 
-**回答形式:**
+**回答形式（固定）:**
 
-## 実行結果の要点
-（何をした・どのファイルが変わった・テストの状況を箇条書きで）
+## Decision
+Approve または Request changes のどちらか1行で明示する。
 
-## diff / テスト結果の確認
-（diff と変更ファイルの整合性、テスト pass/fail、secrets 混入チェック）
+## Issues
+問題点を箇条書き（なければ「なし」）。
+secrets / テスト失敗 / diff不整合 / 副作用を含む。
 
-## 懸念点（あれば）
-（品質・副作用・未確定点・影響範囲の観点から）
+## Required changes
+対応必須の変更点を箇条書き（Approve の場合は「なし」）。
 
-## Approve / Request changes
-（archive 可 → Approve / 追加対応必要 → Request changes、理由1行）
+## Notes
+任意コメント（懸念・提案・軽微な指摘）。不要なら省略可。
 
 ---
 

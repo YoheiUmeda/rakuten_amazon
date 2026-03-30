@@ -4,7 +4,7 @@
 
 ## Steps
 1. `docs/handoff/review_reply.md` を読む
-2. `## Approve / Request changes` セクションの判定を確認する
+2. `## Decision` セクションの判定を確認する（Approve / Request changes）
 3. **Approve の場合:**
    - `docs/handoff/result.md` の `status: review-pending` → `status: reviewed` に変更
    - `docs/handoff/task.md` の status を `done` に変更することを提案する
