@@ -1,0 +1,112 @@
+# 確認不要モード 仕様書 (Phase 1)
+
+## 目的
+
+Claude が実装→テスト→レビュー用ドキュメント生成までを1サイクルとして管理し、
+人間が OK / NG を判断するだけで push まで進める構成の基盤を作る。
+Phase 1 は「状態管理」「サイクル記録」「レビュー用ドキュメント生成」に絞る。
+
+## 1サイクルの定義
+
+最初に掲げた goal を達成することを 1サイクルとする。達成とは:
+- 実装完了
+- テスト pass（または skip 理由明示）
+- 変更内容の要約
+- 非エンジニアでも読めるレビュードキュメントの生成
+
+まで揃い、人間が「push してよい / まだ直す」を判断できる状態になること。
+
+## 1ループの流れ
+
+```
+[実装] → [テスト] → [コミット] → [レビュードキュメント生成]
+  ↓ NG                               ↓ 人間確認
+[修正指示] ←──────────────────── [OK / NG 判定]
+  ↑ loop継続                          ↓ OK
+                                   [push 候補]
+```
+
+## state 項目 (.ai/state/cycle_state.json)
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| cycle_id | string | YYYYMMDD-HHMMSS |
+| goal | string | サイクルの目的 |
+| status | enum | in_progress / pending_review / done / stopped |
+| loop_count | int | ループ回数 |
+| stop_reason | string or null | 停止理由 |
+| loops | array | ループ履歴 |
+
+loops 各要素:
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| loop_id | int | 1始まり連番 |
+| timestamp | string | ISO 8601 |
+| commit | string | git short hash |
+| changed_files | array | 変更ファイル |
+| test_result | enum | pass / fail / skip |
+| summary | string | 1行要約 |
+
+## OK / NG 判定の流れ
+
+1. `review_summary` コマンドで `docs/handoff/review_summary.md` を生成
+2. 人間がドキュメントを読んで判断
+3. OK → `cycle_manager done` → push 候補
+4. NG → `cycle_manager ng --reason "..."` → 修正ループへ
+
+## stop 条件
+
+### hard stop（自動停止）
+- テスト連続失敗かつ原因特定不可
+- 変更範囲が goal から逸脱
+- secrets / 破壊的変更の疑い
+- 同種失敗の繰り返し（改善見込みなし）
+- 次の修正指示を具体化できない
+
+### soft limit（警告のみ・停止せず）
+- loop_count > 10 → WARNING を表示
+
+## commit / rollback / push ポリシー
+
+- 1ループごとに対象ファイルのみ明示コミット（`git add -A` 禁止）
+- 生成物・一時ファイル・secrets はコミットしない
+- rollback: `git reset --hard <前のhash>`（人間が実行）
+- push: 人間が OK を判断した場合のみ手動実行
+
+## safety rules
+
+- secrets を含む diff は生成しない
+- `.env` / APIキー / トークン / DB接続文字列は常に除外
+- 変更範囲は goal に対して説明できる範囲に保つ
+- 無関係なリファクタリング禁止
+
+## Phase 1 CLI
+
+```bash
+# 新サイクル開始
+python -m tools.ai_orchestrator.cycle_manager start --goal "XX を修正"
+
+# ループ記録（実装後に呼ぶ）
+python -m tools.ai_orchestrator.cycle_manager record \
+  --commit abc1234 --files f1.py f2.py --test pass --summary "修正完了"
+
+# レビュードキュメント生成 → docs/handoff/review_summary.md
+python -m tools.ai_orchestrator.review_summary
+
+# NG 指示（次ループへ）
+python -m tools.ai_orchestrator.cycle_manager ng --reason "テスト失敗: XX"
+
+# サイクル完了
+python -m tools.ai_orchestrator.cycle_manager done
+
+# state 確認
+python -m tools.ai_orchestrator.cycle_manager status
+```
+
+## Phase 2 以降（未実装）
+
+- 修正ループの自動継続
+- OpenAI / Claude による自動レビュー（orchestrator.py との統合）
+- clipboard 経路の廃止
+- BAT スクリプトによるワンクリック起動
