@@ -114,6 +114,7 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 
 ## Handoff result
 - After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
+- result.md is gitignored; copy from docs/handoff/result.md.template if it does not exist
 
 ## Review flow (正式手順)
 ```
