@@ -128,6 +128,11 @@ scripts\run_verify_copy_review_request.bat
 - BOM・CRLF/LF・末尾改行を無視して実質一致 / 不一致を判定
 - 成功: exit 0、失敗: exit 1（差分情報を表示）
 
+時短版（成功時のみ ChatGPT をブラウザで開く）:
+```
+scripts\run_verify_and_open_chatgpt.bat
+```
+
 ## Compact instructions
 When compacting, preserve these constraints:
 - fee=None must never be treated as 0
