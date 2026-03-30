@@ -163,6 +163,7 @@ def test_status_latest_loop(isolated_state, capsys):
     assert "latest loop:" in out
     assert "修正完了" in out
     assert "pass" in out
+    assert "bbb" in out  # commit hash
     assert "foo.py" in out
 
 

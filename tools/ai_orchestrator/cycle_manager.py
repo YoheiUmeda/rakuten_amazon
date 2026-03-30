@@ -232,6 +232,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print("latest loop:")
         print(f"  summary      : {lp.get('summary', '')}")
         print(f"  test_result  : {lp['test_result']}")
+        print(f"  commit       : {lp.get('commit', '(none)')}")
         print(f"  changed_files: {files_str}")
         print("loops:")
         for lp in loops:
