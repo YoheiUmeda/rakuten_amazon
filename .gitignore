@@ -59,3 +59,7 @@ docs/handoff/review_request.md
 # Cycle manager state and generated review doc (Phase 1 auto mode)
 .ai/state/
 docs/handoff/review_summary.md
+
+# Handoff working files (session-local, not tracked)
+docs/handoff/result.md
+docs/handoff/review_reply.md
