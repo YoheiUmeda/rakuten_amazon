@@ -115,6 +115,19 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 ## Handoff result
 - After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
 
+## クリップボード検証スクリプト
+
+`review_request.md` が正しくクリップボードへ転送されるかを検証する。
+
+```
+scripts\run_verify_copy_review_request.bat
+```
+
+- `fill_result.py --print-chat-prompt` で `docs/handoff/review_request.md` を生成
+- `copy_review_request.ps1` でクリップボードへ載せ、`tmp_clipboard_check.txt` と比較
+- BOM・CRLF/LF・末尾改行を無視して実質一致 / 不一致を判定
+- 成功: exit 0、失敗: exit 1（差分情報を表示）
+
 ## Compact instructions
 When compacting, preserve these constraints:
 - fee=None must never be treated as 0
