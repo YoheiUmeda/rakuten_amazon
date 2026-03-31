@@ -167,6 +167,20 @@ git push は都度承認。
 - `git add` と `git status` は別コマンドで実行する
 - `cycle_manager start` と `loop_runner` は別コマンドで実行する
 - `git add` は原則1ファイルずつ実行し、複数ファイルを1コマンドにまとめない
+- settings 検証や件数確認に `python -c` や `&&` 連結を使わず、`permissions_audit` を使う
+
+### settings 変更後の再測定ルール
+- settings.local.json を変更した後、同じセッション内で新しい allow 対象コマンドの承認測定をしない
+- settings 変更後の承認再測定は Claude Code 再起動後に行う
+
+## permissions_audit (settings 検証・集計)
+```bash
+# JSON 妥当性確認
+venv/Scripts/python -m tools.ai_orchestrator.permissions_audit validate-settings
+
+# allow/ask/deny 件数・defaultMode 表示
+venv/Scripts/python -m tools.ai_orchestrator.permissions_audit summarize-settings
+```
 
 ## safe_commit (安全柵付きコミット)
 ```bash
