@@ -160,6 +160,7 @@ def test_status_latest_loop(isolated_state, capsys):
     ret = cm.cmd_status(_make_args())
     assert ret == 0
     out = capsys.readouterr().out
+    assert "ng_count        : 0" in out
     assert "latest loop:" in out
     assert "修正完了" in out
     assert "pass" in out

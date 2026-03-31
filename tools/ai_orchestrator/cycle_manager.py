@@ -218,6 +218,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"loop_count      : {state.get('loop_count', 0)}")
     print(f"base_commit     : {state.get('base_commit') or '(none)'}")
     print(f"last_good_commit: {state.get('last_good_commit') or '(none)'}")
+    print(f"ng_count        : {len(state.get('ng_history', []))}")
     if state.get("stop_reason"):
         print(f"stop_reason     : {state['stop_reason']}")
     ng_hist = state.get("ng_history", [])
