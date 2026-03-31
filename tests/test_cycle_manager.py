@@ -165,6 +165,7 @@ def test_status_latest_loop(isolated_state, capsys):
     assert "pass" in out
     assert "bbb" in out  # commit hash
     assert "2026-01-01" in out  # timestamp
+    assert "aaa" in out  # pre_commit
     assert "foo.py" in out
 
 
