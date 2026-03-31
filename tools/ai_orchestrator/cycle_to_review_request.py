@@ -31,7 +31,7 @@ def _git_diff(base_commit: str) -> str:
     try:
         r = subprocess.run(
             ["git", "diff", f"{base_commit}..HEAD"],
-            capture_output=True, text=True, cwd=REPO_ROOT,
+            capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
         )
         return r.stdout if r.returncode == 0 else ""
     except Exception:
