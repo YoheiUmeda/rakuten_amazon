@@ -161,6 +161,12 @@ Important files (fee/pass_filter/credentials) は従来通り都度承認。
 git commit (raw) は auto-allow 対象外。safe_commit を使うこと。
 git push は都度承認。
 
+### 実行コマンド正規化ルール（auto-allow を確実に効かせるため）
+- `cd C:/... &&` を Bash コマンド先頭に付けない（repo root で自動実行）
+- `&&` で複数コマンドを結合しない（1アクション = 1コマンド）
+- `git add` と `git status` は別コマンドで実行する
+- `cycle_manager start` と `loop_runner` は別コマンドで実行する
+
 ## safe_commit (安全柵付きコミット)
 ```bash
 venv/Scripts/python -m tools.ai_orchestrator.safe_commit -m "feat: ..."
