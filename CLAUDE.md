@@ -166,6 +166,7 @@ git push は都度承認。
 - `&&` で複数コマンドを結合しない（1アクション = 1コマンド）
 - `git add` と `git status` は別コマンドで実行する
 - `cycle_manager start` と `loop_runner` は別コマンドで実行する
+- `git add` は原則1ファイルずつ実行し、複数ファイルを1コマンドにまとめない
 
 ## safe_commit (安全柵付きコミット)
 ```bash
