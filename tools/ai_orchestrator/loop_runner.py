@@ -22,6 +22,7 @@ usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from argparse import Namespace
@@ -36,6 +37,17 @@ from tools.ai_orchestrator.cycle_manager import (
     load_state,
 )
 from tools.ai_orchestrator.review_summary import OUTPUT_PATH, build_summary
+
+
+def _normalize_test_cmd_for_windows(test_cmd: str) -> str:
+    """Windows (cmd.exe) 環境で venv/Scripts/python を絶対パスに正規化する。"""
+    if os.name != "nt":
+        return test_cmd
+    venv_py = REPO_ROOT / "venv" / "Scripts" / "python.exe"
+    py_str = f'"{venv_py}"' if venv_py.exists() else f'"{sys.executable}"'
+    test_cmd = test_cmd.replace("venv/Scripts/python", py_str)
+    test_cmd = test_cmd.replace(r"venv\Scripts\python", py_str)
+    return test_cmd
 
 
 def _check_clean() -> bool:
@@ -85,7 +97,8 @@ def main() -> None:
 
     # ── テスト実行 ────────────────────────────────────────────────────────
     print(f"[INFO] テスト実行: {args.test_cmd}")
-    result = subprocess.run(args.test_cmd, shell=True, cwd=REPO_ROOT)
+    test_cmd = _normalize_test_cmd_for_windows(args.test_cmd)
+    result = subprocess.run(test_cmd, shell=True, cwd=REPO_ROOT)
     test_result = "pass" if result.returncode == 0 else "fail"
     print(f"[INFO] test={test_result}")
 

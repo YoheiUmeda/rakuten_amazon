@@ -243,6 +243,40 @@ def test_invalid_status_exits(clean_tree, bad_status, capsys):
     assert bad_status in capsys.readouterr().out
 
 
+# ── _normalize_test_cmd_for_windows ─────────────────────────────────────
+
+def test_normalize_slash_replaced(monkeypatch, tmp_path):
+    """venv/Scripts/python がクォート付き絶対パスに置換される。"""
+    fake_py = tmp_path / "venv" / "Scripts" / "python.exe"
+    fake_py.parent.mkdir(parents=True)
+    fake_py.touch()
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(lr.os, "name", "nt")
+
+    result = lr._normalize_test_cmd_for_windows("venv/Scripts/python -m pytest tests/ -q")
+    assert str(fake_py) in result
+    assert result.startswith('"')
+
+
+def test_normalize_backslash_replaced(monkeypatch, tmp_path):
+    r"""venv\Scripts\python も同様に置換される。"""
+    fake_py = tmp_path / "venv" / "Scripts" / "python.exe"
+    fake_py.parent.mkdir(parents=True)
+    fake_py.touch()
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(lr.os, "name", "nt")
+
+    result = lr._normalize_test_cmd_for_windows(r"venv\Scripts\python -m pytest tests/ -q")
+    assert str(fake_py) in result
+
+
+def test_normalize_noop_on_non_windows(monkeypatch):
+    """Windows 以外では変換しない。"""
+    monkeypatch.setattr(lr.os, "name", "posix")
+    cmd = "venv/Scripts/python -m pytest tests/ -q"
+    assert lr._normalize_test_cmd_for_windows(cmd) == cmd
+
+
 # ── helpers ───────────────────────────────────────────────────────────────
 
 def _run_main(module, args):
