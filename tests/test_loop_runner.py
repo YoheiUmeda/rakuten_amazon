@@ -292,6 +292,19 @@ def test_normalize_noop_on_non_windows(monkeypatch):
     assert lr._normalize_test_cmd_for_windows(cmd) == cmd
 
 
+def test_normalize_no_double_replacement(monkeypatch, tmp_path):
+    """絶対パス化後に再置換されない（.exe.exe や重複パスにならない）。"""
+    fake_py = tmp_path / "venv" / "Scripts" / "python.exe"
+    fake_py.parent.mkdir(parents=True)
+    fake_py.touch()
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(lr.os, "name", "nt")
+
+    result = lr._normalize_test_cmd_for_windows("venv/Scripts/python -m pytest tests/ -q")
+    assert ".exe.exe" not in result
+    assert str(tmp_path) not in result[len(str(tmp_path)):]  # 先頭以降に REPO_ROOT が再出現しない
+
+
 # ── helpers ───────────────────────────────────────────────────────────────
 
 def _run_main(module, args):

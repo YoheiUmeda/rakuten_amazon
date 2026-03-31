@@ -46,9 +46,9 @@ def _normalize_test_cmd_for_windows(test_cmd: str) -> str:
     venv_py = REPO_ROOT / "venv" / "Scripts" / "python.exe"
     py_raw = str(venv_py) if venv_py.exists() else str(sys.executable)
     py_str = f'"{py_raw}"' if ' ' in py_raw else py_raw
-    test_cmd = test_cmd.replace("venv/Scripts/python", py_str)
-    test_cmd = test_cmd.replace(r"venv\Scripts\python", py_str)
-    return test_cmd
+    if "venv/Scripts/python" in test_cmd:
+        return test_cmd.replace("venv/Scripts/python", py_str)
+    return test_cmd.replace(r"venv\Scripts\python", py_str)
 
 
 def _check_clean() -> bool:
