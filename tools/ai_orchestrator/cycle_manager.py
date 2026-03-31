@@ -230,6 +230,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         lp = loops[-1]
         files_str = ", ".join(lp.get("changed_files", [])) or "(なし)"
         print("latest loop:")
+        print(f"  timestamp    : {lp.get('timestamp', '')[:19]}")
         print(f"  summary      : {lp.get('summary', '')}")
         print(f"  test_result  : {lp['test_result']}")
         print(f"  commit       : {lp.get('commit', '(none)')}")
