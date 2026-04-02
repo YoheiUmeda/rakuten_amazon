@@ -25,11 +25,12 @@ def no_git_diff(monkeypatch):
     monkeypatch.setattr(ctr, "_git_diff", lambda base: "")
 
 
-def _pending_state(goal="test goal", changed_files=None):
+def _pending_state(goal="test goal", changed_files=None, ng_history=None):
     return {
         "status": "pending_review",
         "goal": goal,
         "base_commit": "abc0000",
+        "ng_history": ng_history if ng_history is not None else [],
         "loops": [
             {
                 "loop_id": 1,
@@ -122,9 +123,84 @@ def test_empty_task(isolated_state, tmp_path, capsys):
     assert "goal" in capsys.readouterr().out
 
 
+# ── enrichment tests ─────────────────────────────────────────────────────
+
+def test_constraints_from_task_md(tmp_path, no_git_diff):
+    """task.md の実施条件・制約が constraints フィールドに入ること。"""
+    task_md = tmp_path / "task.md"
+    task_md.write_text(
+        "## タスク\nfoo\n\n## 実施条件・制約\n- 制約A\n- 制約B\n\n## 背景\nbar\n",
+        encoding="utf-8",
+    )
+    state = _pending_state()
+    data = ctr.build_review_request(state, task_md_path=task_md)
+    assert data.get("constraints") == ["制約A", "制約B"]
+
+
+def test_constraints_absent_when_task_md_missing(tmp_path, no_git_diff):
+    """task.md が存在しない場合 constraints フィールドが出力されないこと。"""
+    state = _pending_state()
+    data = ctr.build_review_request(state, task_md_path=tmp_path / "nonexistent.md")
+    assert "constraints" not in data
+
+
+def test_constraints_absent_when_section_empty(tmp_path, no_git_diff):
+    """実施条件・制約セクションが空(箇条書きなし)のとき constraints が出力されないこと。"""
+    task_md = tmp_path / "task.md"
+    task_md.write_text("## 実施条件・制約\n-\n\n## 背景\nbar\n", encoding="utf-8")
+    state = _pending_state()
+    data = ctr.build_review_request(state, task_md_path=task_md)
+    assert "constraints" not in data
+
+
+def test_open_questions_from_ng_history(tmp_path, no_git_diff):
+    """ng_history の reason が open_questions に入ること。"""
+    state = _pending_state(ng_history=[
+        {"timestamp": "2026-01-01T00:00:00+09:00", "reason": "テスト失敗: foo"},
+        {"timestamp": "2026-01-02T00:00:00+09:00", "reason": "スコープ外変更"},
+    ])
+    data = ctr.build_review_request(state, task_md_path=tmp_path / "no.md")
+    assert data.get("open_questions") == ["テスト失敗: foo", "スコープ外変更"]
+
+
+def test_open_questions_absent_when_ng_history_empty(tmp_path, no_git_diff):
+    """ng_history が空のとき open_questions フィールドが出力されないこと。"""
+    state = _pending_state()
+    data = ctr.build_review_request(state, task_md_path=tmp_path / "no.md")
+    assert "open_questions" not in data
+
+
+def test_summary_from_review_summary_md(tmp_path, no_git_diff):
+    """review_summary.md の懸念点セクションが summary フィールドに入ること。"""
+    summary_md = tmp_path / "review_summary.md"
+    summary_md.write_text(
+        "## 懸念点\n- テスト網羅率が低い\n- 副作用未確認\n\n## 次の判断\nOK\n",
+        encoding="utf-8",
+    )
+    state = _pending_state()
+    data = ctr.build_review_request(state, review_summary_path=summary_md)
+    assert "テスト網羅率が低い" in data.get("summary", "")
+
+
+def test_summary_absent_when_nashi(tmp_path, no_git_diff):
+    """懸念点が「- なし」のとき summary フィールドが出力されないこと。"""
+    summary_md = tmp_path / "review_summary.md"
+    summary_md.write_text("## 懸念点\n- なし\n\n## 次の判断\nOK\n", encoding="utf-8")
+    state = _pending_state()
+    data = ctr.build_review_request(state, review_summary_path=summary_md)
+    assert "summary" not in data
+
+
+def test_summary_absent_when_file_missing(tmp_path, no_git_diff):
+    """review_summary.md が存在しない場合 summary フィールドが出力されないこと。"""
+    state = _pending_state()
+    data = ctr.build_review_request(state, review_summary_path=tmp_path / "no.md")
+    assert "summary" not in data
+
+
 # ── helper ────────────────────────────────────────────────────────────────
 
-def _run(mod, output_path: Path):
+def _run(mod, output_path: Path, task_md_path: Path | None = None, review_summary_path: Path | None = None):
     """argparse をバイパスして main ロジックを直接実行する。"""
     from argparse import Namespace
     args = Namespace(test_cmd="", test_output="", output=str(output_path))
@@ -157,7 +233,13 @@ def _run(mod, output_path: Path):
         print("[ERROR] 全ループを通じて changed_files が空です。review_request.json を生成できません")
         raise SystemExit(1)
 
-    data = mod.build_review_request(state, test_cmd=args.test_cmd, test_output=args.test_output)
+    data = mod.build_review_request(
+        state,
+        test_cmd=args.test_cmd,
+        test_output=args.test_output,
+        task_md_path=task_md_path,
+        review_summary_path=review_summary_path,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         __import__("json").dumps(data, ensure_ascii=False, indent=2) + "\n",

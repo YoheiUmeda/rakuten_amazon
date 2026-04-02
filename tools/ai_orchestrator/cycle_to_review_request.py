@@ -22,6 +22,8 @@ from pathlib import Path
 from tools.ai_orchestrator.cycle_manager import REPO_ROOT, load_state
 
 DEFAULT_OUTPUT = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
+TASK_MD_PATH = REPO_ROOT / "docs" / "handoff" / "task.md"
+REVIEW_SUMMARY_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
 
 
 def _git_diff(base_commit: str) -> str:
@@ -38,7 +40,63 @@ def _git_diff(base_commit: str) -> str:
         return ""
 
 
-def build_review_request(state: dict, test_cmd: str = "", test_output: str = "") -> dict:
+def _extract_constraints(task_md_path: Path) -> list[str]:
+    """task.md の「実施条件・制約」セクションの箇条書きを返す。ファイルがなければ空リスト。"""
+    if not task_md_path.exists():
+        return []
+    try:
+        text = task_md_path.read_text(encoding="utf-8")
+    except Exception:
+        return []
+    in_section = False
+    items: list[str] = []
+    for line in text.splitlines():
+        if line.strip().startswith("## 実施条件・制約"):
+            in_section = True
+            continue
+        if in_section:
+            if line.startswith("## "):
+                break
+            stripped = line.strip()
+            if stripped.startswith("- ") and stripped[2:].strip():
+                items.append(stripped[2:].strip())
+    return items
+
+
+def _extract_open_questions(ng_history: list[dict]) -> list[str]:
+    """ng_history の reason を open_questions として返す。空なら空リスト。"""
+    return [h["reason"] for h in ng_history if h.get("reason")]
+
+
+def _extract_summary(review_summary_path: Path) -> str:
+    """review_summary.md の「懸念点」セクション内容を返す。なければ空文字。"""
+    if not review_summary_path.exists():
+        return ""
+    try:
+        text = review_summary_path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+    in_section = False
+    lines: list[str] = []
+    for line in text.splitlines():
+        if line.strip().startswith("## 懸念点"):
+            in_section = True
+            continue
+        if in_section:
+            if line.startswith("## "):
+                break
+            lines.append(line)
+    content = "\n".join(lines).strip()
+    return "" if not content or content == "- なし" else content
+
+
+def build_review_request(
+    state: dict,
+    test_cmd: str = "",
+    test_output: str = "",
+    task_md_path: Path | None = None,
+    review_summary_path: Path | None = None,
+) -> dict:
     task = state.get("goal", "")
     loops = state.get("loops", [])
 
@@ -50,13 +108,29 @@ def build_review_request(state: dict, test_cmd: str = "", test_output: str = "")
                 changed_files.append(f)
                 seen.add(f)
 
-    return {
+    result: dict = {
         "task": task,
         "changed_files": changed_files,
         "git_diff": _git_diff(state.get("base_commit", "")),
-        **({"test_command": test_cmd} if test_cmd else {}),
-        **({"test_output": test_output} if test_output else {}),
     }
+    if test_cmd:
+        result["test_command"] = test_cmd
+    if test_output:
+        result["test_output"] = test_output
+
+    constraints = _extract_constraints(task_md_path or TASK_MD_PATH)
+    if constraints:
+        result["constraints"] = constraints
+
+    open_questions = _extract_open_questions(state.get("ng_history", []))
+    if open_questions:
+        result["open_questions"] = open_questions
+
+    summary = _extract_summary(review_summary_path or REVIEW_SUMMARY_PATH)
+    if summary:
+        result["summary"] = summary
+
+    return result
 
 
 def main() -> None:
