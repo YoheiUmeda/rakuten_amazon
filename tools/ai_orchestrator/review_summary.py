@@ -132,7 +132,7 @@ def build_next_instruction_draft(
 """
 
 
-def build_summary(state: dict) -> str:
+def build_summary(state: dict, test_log_path: str = "") -> str:
     goal = state.get("goal", "(未設定)")
     status = state.get("status", "unknown")
     loop_count = state.get("loop_count", 0)
@@ -196,6 +196,7 @@ def build_summary(state: dict) -> str:
 
     concerns_text = "\n".join(f"- {c}" for c in concerns) if concerns else "- なし"
     files_text = "\n".join(f"- {f}" for f in all_files) if all_files else "- (なし)"
+    test_log_line = f"\n- テストログ: {test_log_path}" if test_log_path else ""
 
     return f"""\
 <!-- review_summary generated_at: {_now_jst()} -->
@@ -221,7 +222,7 @@ def build_summary(state: dict) -> str:
 ## テスト結果集計
 - pass: {test_counts['pass']}
 - fail: {test_counts['fail']}
-- skip: {test_counts['skip']}
+- skip: {test_counts['skip']}{test_log_line}
 
 ## rollback 情報（問題発生時に戻せる地点）
 - サイクル開始前: `{base_commit}` （全変更を戻す場合）

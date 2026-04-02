@@ -149,7 +149,7 @@ def main() -> None:
         if ret != 0:
             sys.exit(ret)
 
-        content = build_summary(load_state())
+        content = build_summary(load_state(), test_log_path=str(log_path) if log_path else "")
         OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
         OUTPUT_PATH.write_text(content, encoding="utf-8")
         print(f"[OK] review_summary 生成: {OUTPUT_PATH}")

@@ -9,6 +9,7 @@ import pytest
 from tools.ai_orchestrator.review_summary import (
     _read_review_decision,
     build_next_instruction_draft,
+    build_summary,
 )
 
 
@@ -153,3 +154,40 @@ class TestBuildNextInstructionDraft:
         draft = build_next_instruction_draft(state, tmp_path / "no.md")
         assert "⛔ 作業停止" in draft
         assert "スコープ外変更が検出された" in draft
+
+
+# ── build_summary ─────────────────────────────────────────────────────────────
+
+class TestBuildSummary:
+
+    def _base_state(self):
+        return {
+            "status": "pending_review",
+            "goal": "テストゴール",
+            "cycle_id": "20260101-000000",
+            "loop_count": 1,
+            "base_commit": "abc0001",
+            "last_good_commit": "abc0002",
+            "ng_history": [],
+            "loops": [
+                {
+                    "loop_id": 1,
+                    "timestamp": "2026-01-01T00:00:00",
+                    "test_result": "pass",
+                    "commit": "abc0002",
+                    "pre_commit": "abc0001",
+                    "changed_files": ["src/foo.py"],
+                    "summary": "foo を修正",
+                }
+            ],
+        }
+
+    def test_test_log_path_shown_when_provided(self):
+        state = self._base_state()
+        content = build_summary(state, test_log_path=".ai/logs/test_abc0001_pass_20260101.log")
+        assert "テストログ: .ai/logs/test_abc0001_pass_20260101.log" in content
+
+    def test_test_log_path_absent_when_empty(self):
+        state = self._base_state()
+        content = build_summary(state)
+        assert "テストログ" not in content
