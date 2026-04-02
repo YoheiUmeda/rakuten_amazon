@@ -269,6 +269,27 @@ def test_invalid_status_exits(clean_tree, bad_status, capsys):
     assert bad_status in capsys.readouterr().out
 
 
+# ── _save_test_log ───────────────────────────────────────────────────────
+
+def test_save_test_log_writes_file(tmp_path, monkeypatch):
+    """test_output が非空なら .ai/logs/ にファイルを書く。"""
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    log_path = lr._save_test_log("366 passed\n", "abc0000", "pass")
+    assert log_path is not None
+    assert log_path.exists()
+    assert "abc0000" in log_path.name
+    assert "pass" in log_path.name
+    assert log_path.read_text(encoding="utf-8") == "366 passed\n"
+
+
+def test_save_test_log_skips_empty(tmp_path, monkeypatch):
+    """test_output が空なら None を返してファイルを作らない。"""
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    log_path = lr._save_test_log("", "abc0000", "pass")
+    assert log_path is None
+    assert not (tmp_path / ".ai" / "logs").exists()
+
+
 # ── _normalize_test_cmd_for_windows ─────────────────────────────────────
 
 def test_normalize_slash_no_space(monkeypatch, tmp_path):
@@ -377,6 +398,9 @@ def _execute_loop_runner(lr_mod, args):
     test_result = "pass" if result.returncode == 0 else "fail"
 
     commit = lr_mod._git_short_hash()
+    log_path = lr_mod._save_test_log(test_output, commit, test_result)
+    if log_path:
+        print(f"[INFO] テストログ保存: {log_path}")
     ret = cm.cmd_record(Namespace(
         commit=commit, files=args.files, test=test_result, summary=args.summary,
     ))

@@ -26,6 +26,7 @@ import os
 import subprocess
 import sys
 from argparse import Namespace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.ai_orchestrator.cycle_manager import (
@@ -49,6 +50,22 @@ def _normalize_test_cmd_for_windows(test_cmd: str) -> str:
     if "venv/Scripts/python" in test_cmd:
         return test_cmd.replace("venv/Scripts/python", py_str)
     return test_cmd.replace(r"venv\Scripts\python", py_str)
+
+
+def _save_test_log(test_output: str, commit: str, test_result: str) -> Path | None:
+    """test_output を .ai/logs/ に保存する。空なら None を返す（fail-open）。"""
+    if not test_output:
+        return None
+    try:
+        jst = timezone(timedelta(hours=9))
+        ts = datetime.now(jst).strftime("%Y%m%d-%H%M%S")
+        log_dir = REPO_ROOT / ".ai" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"test_{commit}_{test_result}_{ts}.log"
+        log_path.write_text(test_output, encoding="utf-8")
+        return log_path
+    except Exception:
+        return None
 
 
 def _check_clean() -> bool:
@@ -112,6 +129,9 @@ def main() -> None:
     print(f"[INFO] test={test_result}")
 
     commit = _git_short_hash()
+    log_path = _save_test_log(test_output, commit, test_result)
+    if log_path:
+        print(f"[INFO] テストログ保存: {log_path}")
 
     # ── record ────────────────────────────────────────────────────────────
     ret = cmd_record(Namespace(
