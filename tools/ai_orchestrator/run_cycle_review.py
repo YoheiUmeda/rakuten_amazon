@@ -25,6 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"
 DEFAULT_REQUEST = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
@@ -67,7 +69,8 @@ def main() -> None:
         print("[INFO] --dry-run: orchestrator をスキップします")
         sys.exit(0)
 
-    # ── OPENAI_API_KEY チェック ───────────────────────────────────────────
+    # ── OPENAI_API_KEY チェック（.env から読み込んでから確認）────────────
+    load_dotenv()
     if not os.environ.get("OPENAI_API_KEY"):
         print("[INFO] OPENAI_API_KEY 未設定: orchestrator をスキップします")
         print(f"       review_request.json は生成済みです: {DEFAULT_REQUEST}")

@@ -147,3 +147,37 @@ def test_orch_fails(monkeypatch, capsys):
         _run(monkeypatch, fake_run, api_key="sk-test")
     assert exc.value.code == 1
     assert "orchestrator 失敗" in capsys.readouterr().out
+
+
+def test_load_dotenv_called_and_key_used(monkeypatch, capsys):
+    """load_dotenv が KEY を環境変数に展開した場合、orchestrator が呼ばれること。"""
+    fake_run, calls = _make_fake_subprocess(ctr_rc=0, orch_rc=0)
+    monkeypatch.setattr(rcr.subprocess, "run", fake_run)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    def fake_dotenv(**kwargs):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-dotenv")
+
+    monkeypatch.setattr(rcr, "load_dotenv", fake_dotenv)
+    monkeypatch.setattr("sys.argv", ["run_cycle_review"])
+
+    rcr.main()  # 正常系は sys.exit を呼ばない
+
+    assert any(_is_orch(c) for c in calls)
+    assert "review_reply.md 生成完了" in capsys.readouterr().out
+
+
+def test_load_dotenv_called_no_key_skips_orch(monkeypatch, capsys):
+    """load_dotenv を呼んでも KEY が展開されない場合、orchestrator をスキップすること。"""
+    fake_run, calls = _make_fake_subprocess(ctr_rc=0)
+    monkeypatch.setattr(rcr.subprocess, "run", fake_run)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(rcr, "load_dotenv", lambda **kwargs: None)
+    monkeypatch.setattr("sys.argv", ["run_cycle_review"])
+
+    with pytest.raises(SystemExit) as exc:
+        rcr.main()
+
+    assert exc.value.code == 0
+    assert not any(_is_orch(c) for c in calls)
+    assert "OPENAI_API_KEY 未設定" in capsys.readouterr().out
