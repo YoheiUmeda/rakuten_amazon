@@ -17,11 +17,110 @@ from tools.ai_orchestrator.cycle_manager import load_state, SOFT_LIMIT
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
+REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "review_reply.md"
+NEXT_INSTRUCTION_PATH = REPO_ROOT / "docs" / "handoff" / "next_instruction_draft.md"
 
 
 def _now_jst() -> str:
     jst = timezone(timedelta(hours=9))
     return datetime.now(jst).strftime("%Y-%m-%dT%H:%M:%S+09:00")
+
+
+def _read_review_decision(review_reply_path: Path) -> str:
+    """review_reply.md の判定行から 'approve' / 'request_changes' を返す。
+
+    判定対象: # 見出し行を除く行のうち、stripped が 'approve' または
+    'request changes' / 'request_changes' で始まる最初の行。
+    判定不能・ファイル不在は '' を返す（fail-open）。
+    """
+    if not review_reply_path.exists():
+        return ""
+    try:
+        text = review_reply_path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+    for line in text.splitlines():
+        stripped = line.strip().lower()
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("request changes") or stripped.startswith("request_changes"):
+            return "request_changes"
+        if stripped.startswith("approve"):
+            return "approve"
+    return ""
+
+
+def build_next_instruction_draft(
+    state: dict,
+    review_reply_path: Path | None = None,
+) -> str:
+    """cycle_state から次の Claude への指示文の下書きを生成する。"""
+    goal = state.get("goal", "(未設定)")
+    status = state.get("status", "unknown")
+    ng_history = state.get("ng_history", [])
+    loops = state.get("loops", [])
+
+    seen: set[str] = set()
+    all_files: list[str] = []
+    for lp in loops:
+        for f in lp.get("changed_files", []):
+            if f not in seen:
+                all_files.append(f)
+                seen.add(f)
+
+    decision = _read_review_decision(review_reply_path or REVIEW_REPLY_PATH)
+    ng_reasons = [h["reason"] for h in ng_history if h.get("reason")]
+    last = loops[-1] if loops else {}
+    last_summary = last.get("summary", "(なし)")
+    last_test = last.get("test_result", "不明")
+    files_text = "\n".join(f"- {f}" for f in all_files) if all_files else "- (なし)"
+
+    if status == "done" and not ng_reasons and decision != "request_changes":
+        status_label = "✅ 完了（approve 済み）"
+        action = (
+            f"**{goal}** は完了しました。\n"
+            "次のタスクを task.md に記載して、新しいサイクルを開始してください。"
+        )
+        concerns = "なし"
+    elif ng_reasons or decision == "request_changes":
+        status_label = "⚠️ 修正必要"
+        action = (
+            f"**{goal}** に修正が必要です。\n"
+            "以下の理由を解消して再実装・テスト・record → submit してください。"
+        )
+        if ng_reasons:
+            concerns = "\n".join(f"- {r}" for r in ng_reasons)
+        else:
+            concerns = "- ChatGPT が修正を要求しています（review_reply.md を確認してください）"
+    else:
+        status_label = "⏳ レビュー待ち"
+        action = (
+            f"**{goal}** は現在レビュー待ちです。\n"
+            "approve または reject を実行してください。\n"
+            "  approve: venv/Scripts/python -m tools.ai_orchestrator.cycle_manager approve\n"
+            "  reject:  venv/Scripts/python -m tools.ai_orchestrator.cycle_manager ng --reason \"理由\""
+        )
+        concerns = "なし"
+
+    return f"""\
+# 次の Claude への指示文案
+<!-- generated_at: {_now_jst()} -->
+
+## ステータス
+{status_label}
+
+## 次のアクション
+{action}
+
+## 対象ファイル
+{files_text}
+
+## 直近ループの要約
+{last_summary}（テスト: {last_test}）
+
+## 修正理由 / 懸念点
+{concerns}
+"""
 
 
 def build_summary(state: dict) -> str:
@@ -153,6 +252,11 @@ def main() -> None:
     OUTPUT_PATH.write_text(content, encoding="utf-8")
     print(f"[OK] 出力: {OUTPUT_PATH}")
     print(f"[INFO] status={state.get('status')}  loops={state.get('loop_count', 0)}")
+
+    draft = build_next_instruction_draft(state)
+    NEXT_INSTRUCTION_PATH.parent.mkdir(parents=True, exist_ok=True)
+    NEXT_INSTRUCTION_PATH.write_text(draft, encoding="utf-8")
+    print(f"[OK] next_instruction_draft: {NEXT_INSTRUCTION_PATH}")
 
 
 if __name__ == "__main__":
