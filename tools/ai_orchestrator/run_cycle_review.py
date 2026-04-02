@@ -89,6 +89,10 @@ def main() -> None:
         print("[ERROR] orchestrator 失敗")
         sys.exit(1)
     print(f"[OK] review_reply.md 生成完了: {DEFAULT_REPLY}")
+    print()
+    print("次のステップ: review_reply.md を確認後:")
+    print("  venv/Scripts/python -m tools.ai_orchestrator.apply_review --auto-approve --auto-archive")
+    print("  git push")
 
 
 if __name__ == "__main__":

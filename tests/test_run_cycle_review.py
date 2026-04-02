@@ -163,8 +163,10 @@ def test_load_dotenv_called_and_key_used(monkeypatch, capsys):
 
     rcr.main()  # 正常系は sys.exit を呼ばない
 
+    out = capsys.readouterr().out
     assert any(_is_orch(c) for c in calls)
-    assert "review_reply.md 生成完了" in capsys.readouterr().out
+    assert "review_reply.md 生成完了" in out
+    assert "apply_review --auto-approve --auto-archive" in out
 
 
 def test_load_dotenv_called_no_key_skips_orch(monkeypatch, capsys):
