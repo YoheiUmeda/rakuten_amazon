@@ -136,24 +136,45 @@ class TestApplyReview:
         rc = apply_review(reply, result, dry_run=False, auto_approve=True)
         assert rc == 0
 
-    def test_auto_archive_calls_archive_task(self, tmp_path, monkeypatch):
-        """auto_archive=True + approve → _archive_task が呼ばれる。"""
+    def test_auto_archive_runs_when_approve_succeeds(self, tmp_path, monkeypatch):
+        """auto_approve 成功 + auto_archive=True → _archive_task が呼ばれる。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: True)
         called = []
         monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
         monkeypatch.setattr(mod, "TASK_MD", tmp_path / "task.md")
         monkeypatch.setattr(mod, "ARCHIVE_DIR", tmp_path / "archive")
         reply = self._make_reply(tmp_path, APPROVE_REPLY)
         result = self._make_result(tmp_path)
-        apply_review(reply, result, dry_run=False, auto_archive=True)
+        apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
         assert called
 
-    def test_auto_archive_skipped_on_dry_run(self, tmp_path, monkeypatch):
-        """dry_run=True のとき _archive_task は呼ばれない。"""
+    def test_auto_archive_skipped_on_approve_failure(self, tmp_path, monkeypatch):
+        """cycle_manager approve 失敗時は _archive_task を呼ばない。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: False)
         called = []
         monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
         reply = self._make_reply(tmp_path, APPROVE_REPLY)
         result = self._make_result(tmp_path)
-        apply_review(reply, result, dry_run=True, auto_archive=True)
+        apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
+        assert not called
+
+    def test_auto_archive_requires_auto_approve(self, tmp_path, monkeypatch):
+        """--auto-archive 単独（auto_approve なし）では _archive_task を呼ばない。"""
+        called = []
+        monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_approve=False, auto_archive=True)
+        assert not called
+
+    def test_auto_archive_skipped_on_dry_run(self, tmp_path, monkeypatch):
+        """dry_run=True のとき _archive_task は呼ばれない。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: True)
+        called = []
+        monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=True, auto_approve=True, auto_archive=True)
         assert not called
 
     def test_auto_archive_skipped_on_request_changes(self, tmp_path, monkeypatch):
@@ -162,7 +183,7 @@ class TestApplyReview:
         monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
         reply = self._make_reply(tmp_path, REQUEST_REPLY)
         result = self._make_result(tmp_path)
-        apply_review(reply, result, dry_run=False, auto_archive=True)
+        apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
         assert not called
 
 

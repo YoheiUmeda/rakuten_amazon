@@ -139,18 +139,25 @@ def apply_review(
         print("Decision: Approve")
         print(f"Updated: {'result.md' if changed and not dry_run else 'none'}")
         print("Next: task.md の status を done にして archive へ移動する")
+        cycle_approved = False
         if auto_approve and not dry_run:
             if _run_cycle_approve():
                 print("[OK] cycle_manager approve 完了")
+                cycle_approved = True
             else:
                 print("[WARN] cycle_manager approve 失敗")
-                print("       result.md は更新済み / cycle は未確定")
+                print("       result.md は更新済み / cycle は未確定 / task.md は未移動")
                 print("       手動で実行: venv/Scripts/python -m tools.ai_orchestrator.cycle_manager approve")
         if auto_archive and not dry_run:
-            if _archive_task(TASK_MD, ARCHIVE_DIR):
-                print("[OK] task.md を archive へ移動しました")
+            if not auto_approve:
+                print("[WARN] --auto-archive は --auto-approve と同時に使用してください。archive をスキップします。")
+            elif not cycle_approved:
+                print("[WARN] cycle_manager approve が未完了のため、task.md の archive をスキップします。")
             else:
-                print("[WARN] task.md の archive 失敗（手動で移動してください）")
+                if _archive_task(TASK_MD, ARCHIVE_DIR):
+                    print("[OK] task.md を archive へ移動しました")
+                else:
+                    print("[WARN] task.md の archive 失敗（手動で移動してください）")
     else:
         issues = _parse_section(reply_text, "Issues")
         required = _parse_section(reply_text, "Required changes")
