@@ -18,6 +18,8 @@ from tools.ai_orchestrator.generate_review_request import REPO_ROOT
 
 REVIEW_REPLY_MD = REPO_ROOT / "docs" / "handoff" / "review_reply.md"
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
+TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
+ARCHIVE_DIR = REPO_ROOT / "docs" / "handoff" / "archive"
 
 
 def _parse_section(text: str, heading: str) -> str:
@@ -40,6 +42,54 @@ def _parse_decision(reply_text: str) -> str:
     return ""
 
 
+def _archive_task(task_path: Path, archive_dir: Path) -> bool:
+    """task.md の status を done に更新して archive へ移動する。fail-open で False を返す。
+
+    abort 条件:
+    - task.md が存在しない
+    - task_id が空
+    - 移動先ファイルが既に存在する
+    """
+    if not task_path.exists():
+        print("[WARN] task.md が見つかりません。archive をスキップします。")
+        return False
+
+    text = task_path.read_text(encoding="utf-8")
+
+    m_id = re.search(r'^task_id:\s*["\']?([^"\'#\n]+)["\']?', text, re.MULTILINE)
+    task_id = m_id.group(1).strip() if m_id else ""
+    if not task_id:
+        print("[WARN] task_id が空です。archive をスキップします。")
+        return False
+
+    m_slug = re.search(r'^slug:\s*["\']?([^"\'#\n]+)["\']?', text, re.MULTILINE)
+    slug = m_slug.group(1).strip() if m_slug else ""
+
+    m_date = re.search(r'^updated:\s*([^\s#\n]+)', text, re.MULTILINE)
+    date_str = (m_date.group(1).strip() if m_date else "").replace("-", "")
+
+    fname = f"{date_str}_task_{task_id}"
+    if slug:
+        fname += f"_{slug}"
+    fname += ".md"
+
+    dest = archive_dir / fname
+    if dest.exists():
+        print(f"[WARN] archive 先が既に存在します: {dest}。archive をスキップします。")
+        return False
+
+    updated_text = re.sub(
+        r'^(status:\s*)(?:draft|pending|approved|done)',
+        r'\g<1>done',
+        text, count=1, flags=re.MULTILINE,
+    )
+
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    task_path.write_text(updated_text, encoding="utf-8")
+    task_path.rename(dest)
+    return True
+
+
 def _run_cycle_approve() -> bool:
     """cycle_manager approve をサブプロセスで実行する。成功なら True（fail-open）。"""
     try:
@@ -57,6 +107,7 @@ def apply_review(
     result_path: Path = RESULT_MD,
     dry_run: bool = False,
     auto_approve: bool = False,
+    auto_archive: bool = False,
 ) -> int:
     """0: success, 1: error"""
     if not reply_path.exists():
@@ -95,6 +146,11 @@ def apply_review(
                 print("[WARN] cycle_manager approve 失敗")
                 print("       result.md は更新済み / cycle は未確定")
                 print("       手動で実行: venv/Scripts/python -m tools.ai_orchestrator.cycle_manager approve")
+        if auto_archive and not dry_run:
+            if _archive_task(TASK_MD, ARCHIVE_DIR):
+                print("[OK] task.md を archive へ移動しました")
+            else:
+                print("[WARN] task.md の archive 失敗（手動で移動してください）")
     else:
         issues = _parse_section(reply_text, "Issues")
         required = _parse_section(reply_text, "Required changes")
@@ -120,9 +176,11 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="ファイル変更なし")
     parser.add_argument("--auto-approve", action="store_true", dest="auto_approve",
                         help="Approve 時に cycle_manager approve を自動実行（opt-in）")
+    parser.add_argument("--auto-archive", action="store_true", dest="auto_archive",
+                        help="Approve 時に task.md を done に更新して archive へ移動（opt-in）")
     args = parser.parse_args()
 
-    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run, args.auto_approve))
+    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run, args.auto_approve, args.auto_archive))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 from pathlib import Path
 
 import tools.ai_orchestrator.apply_review as mod
-from tools.ai_orchestrator.apply_review import _parse_decision, _parse_section, apply_review
+from tools.ai_orchestrator.apply_review import _archive_task, _parse_decision, _parse_section, apply_review
 
 APPROVE_REPLY = """\
 ## Decision
@@ -135,3 +135,76 @@ class TestApplyReview:
         result = self._make_result(tmp_path)
         rc = apply_review(reply, result, dry_run=False, auto_approve=True)
         assert rc == 0
+
+    def test_auto_archive_calls_archive_task(self, tmp_path, monkeypatch):
+        """auto_archive=True + approve → _archive_task が呼ばれる。"""
+        called = []
+        monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
+        monkeypatch.setattr(mod, "TASK_MD", tmp_path / "task.md")
+        monkeypatch.setattr(mod, "ARCHIVE_DIR", tmp_path / "archive")
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_archive=True)
+        assert called
+
+    def test_auto_archive_skipped_on_dry_run(self, tmp_path, monkeypatch):
+        """dry_run=True のとき _archive_task は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=True, auto_archive=True)
+        assert not called
+
+    def test_auto_archive_skipped_on_request_changes(self, tmp_path, monkeypatch):
+        """decision=request_changes のとき _archive_task は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_archive_task", lambda t, a: called.append(True) or True)
+        reply = self._make_reply(tmp_path, REQUEST_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_archive=True)
+        assert not called
+
+
+class TestArchiveTask:
+
+    def _make_task(self, tmp_path: Path, task_id: str = "0042", slug: str = "my-task",
+                   updated: str = "2026-04-03", status: str = "approved") -> Path:
+        p = tmp_path / "task.md"
+        p.write_text(
+            f'---\ntask_id: "{task_id}"\nslug: "{slug}"\nstatus: {status}\nupdated: {updated}\n---\n',
+            encoding="utf-8",
+        )
+        return p
+
+    def test_moves_to_archive(self, tmp_path):
+        task = self._make_task(tmp_path)
+        archive = tmp_path / "archive"
+        assert _archive_task(task, archive)
+        dest = archive / "20260403_task_0042_my-task.md"
+        assert dest.exists()
+        assert not task.exists()
+
+    def test_status_updated_to_done(self, tmp_path):
+        task = self._make_task(tmp_path)
+        archive = tmp_path / "archive"
+        _archive_task(task, archive)
+        dest = archive / "20260403_task_0042_my-task.md"
+        assert "status: done" in dest.read_text(encoding="utf-8")
+
+    def test_aborts_on_empty_task_id(self, tmp_path):
+        task = self._make_task(tmp_path, task_id="")
+        archive = tmp_path / "archive"
+        assert not _archive_task(task, archive)
+        assert task.exists()
+
+    def test_aborts_on_duplicate_dest(self, tmp_path):
+        task = self._make_task(tmp_path)
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        (archive / "20260403_task_0042_my-task.md").write_text("existing", encoding="utf-8")
+        assert not _archive_task(task, archive)
+        assert task.exists()
+
+    def test_aborts_on_missing_task_md(self, tmp_path):
+        assert not _archive_task(tmp_path / "nonexistent.md", tmp_path / "archive")
