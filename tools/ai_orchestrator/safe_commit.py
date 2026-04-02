@@ -55,6 +55,7 @@ ALLOWED_SCOPE_PATTERNS = [
     "tests/test_*.py",
     "docs/automation/auto_mode_spec.md",
     "CLAUDE.md",
+    ".ai/prompts/*",
 ]
 
 

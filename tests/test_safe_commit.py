@@ -106,3 +106,14 @@ def test_non_test_files_out_of_scope():
     """docs/ の汎用ファイルはスコープ外。"""
     assert not sc._is_in_scope("docs/example.md")
     assert not sc._is_in_scope("docs/handoff/result.md")
+
+
+def test_ai_prompts_in_scope():
+    """.ai/prompts/* はスコープ内。"""
+    assert sc._is_in_scope(".ai/prompts/review_system.md")
+
+
+def test_ai_non_prompts_out_of_scope():
+    """.ai/prompts/ 以外の .ai/ ファイルはスコープ外。"""
+    assert not sc._is_in_scope(".ai/handoff/review_request.json")
+    assert not sc._is_in_scope(".ai/state/cycle_state.json")
