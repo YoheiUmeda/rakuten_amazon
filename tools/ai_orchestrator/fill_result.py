@@ -154,6 +154,15 @@ def _build_conclusion_from_state(state: dict) -> str:
     return summary
 
 
+def _extract_log_summary(test_output: str) -> str:
+    """WARNING / ERROR / FAILED / failed / Traceback を含む行を抽出する。なければ「なし」（fail-open）。"""
+    if not test_output:
+        return "なし"
+    keywords = ("WARNING", "ERROR", "FAILED", "failed", "Traceback")
+    lines = [l for l in test_output.splitlines() if any(k in l for k in keywords)]
+    return "\n".join(lines) if lines else "なし"
+
+
 def _build_concerns_from_state(state: dict) -> str:
     """ng_history から未確定点・懸念の叩き台を生成する。空なら「なし」。"""
     ng_history = state.get("ng_history", [])
@@ -190,6 +199,8 @@ def build_result_md(
         focus_block = "\n".join(f"- {f}" for f in review_focus)
     else:
         focus_block = "<!-- TODO: ChatGPT に特に見てほしい点。なければ「なし」 -->"
+
+    log_summary = _extract_log_summary(test_output)
 
     # 未確定点・懸念: cycle_state があれば ng_history から生成
     if cycle_state is not None:
@@ -240,7 +251,7 @@ secrets_checked: false
 ```
 
 ## ログ要約
-<!-- TODO: 警告・エラー・重要なログ行。不要なら「なし」と書く。 -->
+{log_summary}
 
 ## 未確定点・懸念
 {concerns_text}

@@ -16,6 +16,7 @@ import pytest
 from tools.ai_orchestrator.fill_result import (
     _build_conclusion_from_state,
     _build_concerns_from_state,
+    _extract_log_summary,
     _read_open_questions,
     _read_task_id,
     _read_task_purpose,
@@ -245,6 +246,63 @@ class TestBuildResultMd:
         state = {"ng_history": [], "loops": []}
         md = self._build(conclusion="", cycle_state=state)
         assert "TODO" in md.split("## 結論")[1].split("##")[0]
+
+
+# ── _extract_log_summary ─────────────────────────────────────────────────
+
+class TestExtractLogSummary:
+
+    def test_empty_returns_nashi(self):
+        assert _extract_log_summary("") == "なし"
+
+    def test_no_keywords_returns_nashi(self):
+        assert _extract_log_summary("1 passed in 0.1s") == "なし"
+
+    def test_warning_extracted(self):
+        out = "line1\nWARNING: something\nline3"
+        assert "WARNING: something" in _extract_log_summary(out)
+
+    def test_error_extracted(self):
+        out = "line1\nERROR: bad\nline3"
+        assert "ERROR: bad" in _extract_log_summary(out)
+
+    def test_failed_extracted(self):
+        out = "FAILED tests/test_foo.py::test_bar\n1 failed"
+        result = _extract_log_summary(out)
+        assert "FAILED" in result
+        assert "failed" in result
+
+    def test_traceback_extracted(self):
+        out = "Traceback (most recent call last):\n  File foo.py"
+        assert "Traceback" in _extract_log_summary(out)
+
+    def test_build_result_md_log_summary_filled(self):
+        """build_result_md でログ要約欄が test_output から自動補完されること。"""
+        md = build_result_md(
+            task_id="0001",
+            generated_at="2026-01-01T00:00:00+09:00",
+            conclusion="test",
+            changed_files=["foo.py"],
+            diff="",
+            test_output="FAILED tests/test_foo.py\n1 failed",
+        )
+        section = md.split("## ログ要約")[1].split("##")[0]
+        assert "FAILED" in section
+        assert "TODO" not in section
+
+    def test_build_result_md_log_summary_nashi_when_no_output(self):
+        """test_output が空のとき「なし」になること。"""
+        md = build_result_md(
+            task_id="0001",
+            generated_at="2026-01-01T00:00:00+09:00",
+            conclusion="test",
+            changed_files=["foo.py"],
+            diff="",
+            test_output="",
+        )
+        section = md.split("## ログ要約")[1].split("##")[0]
+        assert "なし" in section
+        assert "TODO" not in section
 
 
 # ── _build_conclusion_from_state ─────────────────────────────────────────
