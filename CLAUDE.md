@@ -56,6 +56,8 @@ Use normal flow when any applies:
 
 Use /plan only for complex/high-risk/multi-step changes; normal flow is: inspect → diff → implement.
 
+For run-only / review-only / execution-only tasks (status check, start/stop/approve, loop_runner), never use /plan. If Plan Mode auto-starts, exit immediately without saving.
+
 ## Safety rules
 - Never commit secrets
 - Never edit .env directly without explicit instruction
