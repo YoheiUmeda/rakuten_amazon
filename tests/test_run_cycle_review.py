@@ -46,7 +46,7 @@ def _run(monkeypatch, fake_run, api_key: str | None = "test-key", dry_run: bool 
     else:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    args = Namespace(test_cmd="", test_output="", model=model, dry_run=dry_run)
+    args = Namespace(test_cmd="", test_output="", test_log_path="", model=model, dry_run=dry_run)
     _execute(args)
 
 
@@ -61,6 +61,8 @@ def _execute(args):
         ctr_cmd += ["--test-cmd", args.test_cmd]
     if args.test_output:
         ctr_cmd += ["--test-output", args.test_output]
+    if args.test_log_path:
+        ctr_cmd += ["--test-log-path", args.test_log_path]
 
     print("[run_cycle_review] Step 1: cycle_to_review_request")
     r = rcr.subprocess.run(ctr_cmd, cwd=rcr.REPO_ROOT)
@@ -151,6 +153,26 @@ def test_orch_fails(monkeypatch, capsys):
     assert "orchestrator 失敗" in capsys.readouterr().out
 
 
+def test_test_log_path_passed_to_ctr(monkeypatch, capsys):
+    """--test-log-path が ctr_cmd に渡される。"""
+    from argparse import Namespace
+
+    fake_run, calls = _make_fake_subprocess(ctr_rc=0, orch_rc=0)
+    monkeypatch.setattr(rcr.subprocess, "run", fake_run)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    args = Namespace(test_cmd="", test_output="", test_log_path=".ai/logs/test_abc_pass.log", model=None, dry_run=False)
+    with pytest.raises(SystemExit):
+        _execute(args)
+
+    ctr_calls = [c for c in calls if _is_ctr(c)]
+    assert ctr_calls
+    ctr_cmd = ctr_calls[0]
+    assert "--test-log-path" in ctr_cmd
+    idx = ctr_cmd.index("--test-log-path")
+    assert ctr_cmd[idx + 1] == ".ai/logs/test_abc_pass.log"
+
+
 def test_test_output_passed_to_ctr(monkeypatch, capsys):
     """--test-output が ctr_cmd に --test-output として渡される。"""
     from argparse import Namespace
@@ -159,7 +181,7 @@ def test_test_output_passed_to_ctr(monkeypatch, capsys):
     monkeypatch.setattr(rcr.subprocess, "run", fake_run)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
-    args = Namespace(test_cmd="", test_output="366 passed\n", model=None, dry_run=False)
+    args = Namespace(test_cmd="", test_output="366 passed\n", test_log_path="", model=None, dry_run=False)
     with pytest.raises(SystemExit):
         _execute(args)
 

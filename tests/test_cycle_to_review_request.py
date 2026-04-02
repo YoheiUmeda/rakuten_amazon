@@ -198,6 +198,20 @@ def test_summary_absent_when_file_missing(tmp_path, no_git_diff):
     assert "summary" not in data
 
 
+def test_test_log_path_included(tmp_path, no_git_diff):
+    """test_log_path が指定された場合、review_request に含まれること。"""
+    state = _pending_state()
+    data = ctr.build_review_request(state, test_log_path=".ai/logs/test_abc0000_pass_20260403.log")
+    assert data.get("test_log_path") == ".ai/logs/test_abc0000_pass_20260403.log"
+
+
+def test_test_log_path_absent_when_empty(tmp_path, no_git_diff):
+    """test_log_path が空なら review_request に含まれないこと。"""
+    state = _pending_state()
+    data = ctr.build_review_request(state)
+    assert "test_log_path" not in data
+
+
 # ── _git_diff ────────────────────────────────────────────────────────────
 
 class TestGitDiff:
@@ -254,7 +268,7 @@ class TestGitDiff:
 def _run(mod, output_path: Path, task_md_path: Path | None = None, review_summary_path: Path | None = None):
     """argparse をバイパスして main ロジックを直接実行する。"""
     from argparse import Namespace
-    args = Namespace(test_cmd="", test_output="", output=str(output_path))
+    args = Namespace(test_cmd="", test_output="", test_log_path="", output=str(output_path))
 
     state = cm.load_state()
     if not state:
@@ -288,6 +302,7 @@ def _run(mod, output_path: Path, task_md_path: Path | None = None, review_summar
         state,
         test_cmd=args.test_cmd,
         test_output=args.test_output,
+        test_log_path=args.test_log_path,
         task_md_path=task_md_path,
         review_summary_path=review_summary_path,
     )

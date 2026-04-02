@@ -102,6 +102,7 @@ def build_review_request(
     state: dict,
     test_cmd: str = "",
     test_output: str = "",
+    test_log_path: str = "",
     task_md_path: Path | None = None,
     review_summary_path: Path | None = None,
 ) -> dict:
@@ -125,6 +126,8 @@ def build_review_request(
         result["test_command"] = test_cmd
     if test_output:
         result["test_output"] = test_output
+    if test_log_path:
+        result["test_log_path"] = test_log_path
 
     constraints = _extract_constraints(task_md_path or TASK_MD_PATH)
     if constraints:
@@ -150,6 +153,7 @@ def main() -> None:
     )
     parser.add_argument("--test-cmd", default="", help="テストコマンド（任意）")
     parser.add_argument("--test-output", default="", help="テスト出力（任意）")
+    parser.add_argument("--test-log-path", default="", help="テストログファイルパス（任意）")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="出力先 JSON パス")
     args = parser.parse_args()
 
@@ -186,7 +190,7 @@ def main() -> None:
         sys.exit(1)
 
     # ── 変換・出力 ────────────────────────────────────────────────────────
-    data = build_review_request(state, test_cmd=args.test_cmd, test_output=args.test_output)
+    data = build_review_request(state, test_cmd=args.test_cmd, test_output=args.test_output, test_log_path=args.test_log_path)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(

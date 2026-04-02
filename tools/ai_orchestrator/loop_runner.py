@@ -161,6 +161,8 @@ def main() -> None:
             rcr_cmd = [py, "-m", "tools.ai_orchestrator.run_cycle_review"]
             if test_output:
                 rcr_cmd += ["--test-output", test_output]
+            if log_path:
+                rcr_cmd += ["--test-log-path", str(log_path)]
             r = subprocess.run(rcr_cmd, cwd=REPO_ROOT)
             if r.returncode != 0:
                 print("[ERROR] run_cycle_review 失敗")

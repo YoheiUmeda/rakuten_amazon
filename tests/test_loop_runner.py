@@ -232,6 +232,33 @@ def test_auto_review_subprocess_fails(clean_tree, fixed_hash, monkeypatch, tmp_p
     assert "run_cycle_review 失敗" in capsys.readouterr().out
 
 
+def test_auto_review_passes_test_log_path(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """--auto-review + pass + test_output → run_cycle_review に --test-log-path が渡される。"""
+    calls: list = []
+
+    def fake_sub(cmd, shell=False, cwd=None, **kw):
+        calls.append(list(cmd) if isinstance(cmd, list) else cmd)
+        return SimpleNamespace(returncode=0, stdout="366 passed\n", stderr="")
+
+    cm.save_state({
+        "status": "in_progress", "goal": "g", "loop_count": 0,
+        "last_good_commit": None, "loops": [],
+    })
+    monkeypatch.setattr(lr, "OUTPUT_PATH", tmp_path / "review_summary.md")
+    monkeypatch.setattr(lr, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(lr.subprocess, "run", fake_sub)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True))
+    assert exc.value.code == 0
+    rcr_calls = [c for c in calls if isinstance(c, list) and _is_rcr(c)]
+    assert rcr_calls, "run_cycle_review が呼ばれていない"
+    rcr_cmd = rcr_calls[0]
+    assert "--test-log-path" in rcr_cmd
+    idx = rcr_cmd.index("--test-log-path")
+    assert "test_" in rcr_cmd[idx + 1]
+
+
 def test_auto_review_passes_test_output(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
     """--auto-review + pass → run_cycle_review に --test-output が渡される。"""
     calls: list = []
@@ -424,6 +451,8 @@ def _execute_loop_runner(lr_mod, args):
             rcr_cmd = [py, "-m", "tools.ai_orchestrator.run_cycle_review"]
             if test_output:
                 rcr_cmd += ["--test-output", test_output]
+            if log_path:
+                rcr_cmd += ["--test-log-path", str(log_path)]
             r = lr_mod.subprocess.run(rcr_cmd, cwd=cm.REPO_ROOT)
             if r.returncode != 0:
                 print("[ERROR] run_cycle_review 失敗")
