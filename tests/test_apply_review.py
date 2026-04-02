@@ -187,6 +187,62 @@ class TestApplyReview:
         assert not called
 
 
+class TestEndToEnd:
+    """apply_review の全ステップを実ファイルで通す統合テスト。"""
+
+    def _make_reply(self, tmp_path: Path, content: str) -> Path:
+        p = tmp_path / "review_reply.md"
+        p.write_text(content, encoding="utf-8")
+        return p
+
+    def _make_result(self, tmp_path: Path) -> Path:
+        p = tmp_path / "result.md"
+        p.write_text("---\nstatus: review-pending\n---\n", encoding="utf-8")
+        return p
+
+    def _make_task(self, tmp_path: Path) -> Path:
+        p = tmp_path / "task.md"
+        p.write_text(
+            '---\ntask_id: "0099"\nslug: "e2e-test"\nstatus: approved\nupdated: 2026-04-03\n---\n',
+            encoding="utf-8",
+        )
+        return p
+
+    def test_full_approve_flow(self, tmp_path, monkeypatch):
+        """approve → result.md 更新 → cycle_approve 成功 → task.md archive 移動。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: True)
+        monkeypatch.setattr(mod, "TASK_MD", tmp_path / "task.md")
+        monkeypatch.setattr(mod, "ARCHIVE_DIR", tmp_path / "archive")
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        task = self._make_task(tmp_path)
+
+        rc = apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
+
+        assert rc == 0
+        assert "status: reviewed" in result.read_text(encoding="utf-8")
+        dest = tmp_path / "archive" / "20260403_task_0099_e2e-test.md"
+        assert dest.exists()
+        assert "status: done" in dest.read_text(encoding="utf-8")
+        assert not task.exists()
+
+    def test_approve_failure_leaves_task_md(self, tmp_path, monkeypatch):
+        """cycle_approve 失敗時は result.md 更新済み・task.md 未移動。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: False)
+        monkeypatch.setattr(mod, "TASK_MD", tmp_path / "task.md")
+        monkeypatch.setattr(mod, "ARCHIVE_DIR", tmp_path / "archive")
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        task = self._make_task(tmp_path)
+
+        rc = apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
+
+        assert rc == 0
+        assert "status: reviewed" in result.read_text(encoding="utf-8")
+        assert task.exists()
+        assert not (tmp_path / "archive").exists()
+
+
 class TestArchiveTask:
 
     def _make_task(self, tmp_path: Path, task_id: str = "0042", slug: str = "my-task",
