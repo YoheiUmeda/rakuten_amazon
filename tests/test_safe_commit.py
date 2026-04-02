@@ -93,3 +93,9 @@ def test_normal_commit(monkeypatch, capsys):
         _run(monkeypatch, staged=["tools/ai_orchestrator/cycle_manager.py"])
     assert exc.value.code == 0
     assert "[OK] committed" in capsys.readouterr().out
+
+
+def test_test_review_summary_and_fill_result_in_scope():
+    """tests/test_review_summary.py と tests/test_fill_result.py はスコープ内。"""
+    assert sc._is_in_scope("tests/test_review_summary.py")
+    assert sc._is_in_scope("tests/test_fill_result.py")

@@ -57,6 +57,8 @@ ALLOWED_SCOPE_PATTERNS = [
     "tests/test_cycle_to_review_request.py",
     "tests/test_run_cycle_review.py",
     "tests/test_safe_commit.py",
+    "tests/test_review_summary.py",
+    "tests/test_fill_result.py",
     "docs/automation/auto_mode_spec.md",
     "CLAUDE.md",
 ]
