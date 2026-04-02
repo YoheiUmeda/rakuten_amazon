@@ -243,6 +243,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="cycle_state.json からレビュー用ドキュメントを生成する")
     parser.add_argument("--dry-run", action="store_true", help="stdout に出力のみ（ファイル書き込みなし）")
+    parser.add_argument("--test-log-path", default="",
+                        help="テストログファイルパス（loop_runner 経由の場合のみ渡される。省略時は表示しない）")
     args = parser.parse_args()
 
     state = load_state()
@@ -251,7 +253,7 @@ def main() -> None:
               file=sys.stderr)
         sys.exit(1)
 
-    content = build_summary(state)
+    content = build_summary(state, test_log_path=args.test_log_path)
 
     if args.dry_run:
         print("[DRY-RUN] --- review_summary preview ---")
