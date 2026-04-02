@@ -2,7 +2,9 @@
 from pathlib import Path
 
 import tools.ai_orchestrator.apply_review as mod
-from tools.ai_orchestrator.apply_review import _archive_task, _parse_decision, _parse_section, apply_review
+from tools.ai_orchestrator.apply_review import (
+    _archive_task, _extract_reject_reason, _parse_decision, _parse_section, apply_review,
+)
 
 APPROVE_REPLY = """\
 ## Decision
@@ -57,6 +59,22 @@ class TestParseDecision:
     def test_case_insensitive(self):
         text = "## Decision\nAPPROVE\n## Issues\n"
         assert _parse_decision(text) == "approve"
+
+
+class TestExtractRejectReason:
+
+    def test_required_changes_first(self):
+        """Required changes の先頭箇条書きを優先する。"""
+        assert _extract_reject_reason(REQUEST_REPLY) == "foo.py にテストを追加する"
+
+    def test_falls_back_to_issues(self):
+        """Required changes が空なら Issues の先頭箇条書きを返す。"""
+        text = "## Decision\nrequest_changes\n## Issues\n- 問題点A\n## Required changes\n\n"
+        assert _extract_reject_reason(text) == "問題点A"
+
+    def test_default_when_both_empty(self):
+        """両セクションが空ならデフォルト文字列を返す。"""
+        assert _extract_reject_reason(APPROVE_REPLY) == "request_changes by AI review"
 
 
 class TestApplyReview:
@@ -184,6 +202,43 @@ class TestApplyReview:
         reply = self._make_reply(tmp_path, REQUEST_REPLY)
         result = self._make_result(tmp_path)
         apply_review(reply, result, dry_run=False, auto_approve=True, auto_archive=True)
+        assert not called
+
+    def test_auto_reject_calls_cycle_reject_on_request_changes(self, tmp_path, monkeypatch):
+        """auto_reject=True + request_changes → _run_cycle_reject が呼ばれる。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_reject", lambda r: called.append(r) or True)
+        reply = self._make_reply(tmp_path, REQUEST_REPLY)
+        result = self._make_result(tmp_path)
+        rc = apply_review(reply, result, dry_run=False, auto_reject=True)
+        assert rc == 0
+        assert called
+        assert called[0] == "foo.py にテストを追加する"
+
+    def test_auto_reject_skipped_on_approve(self, tmp_path, monkeypatch):
+        """auto_reject=True でも approve のとき _run_cycle_reject は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_reject", lambda r: called.append(r) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_reject=True)
+        assert not called
+
+    def test_auto_reject_failure_returns_zero(self, tmp_path, monkeypatch):
+        """_run_cycle_reject 失敗時も rc=0 で返る（fail-open）。"""
+        monkeypatch.setattr(mod, "_run_cycle_reject", lambda r: False)
+        reply = self._make_reply(tmp_path, REQUEST_REPLY)
+        result = self._make_result(tmp_path)
+        rc = apply_review(reply, result, dry_run=False, auto_reject=True)
+        assert rc == 0
+
+    def test_auto_reject_skipped_on_dry_run(self, tmp_path, monkeypatch):
+        """dry_run=True のとき _run_cycle_reject は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_reject", lambda r: called.append(r) or True)
+        reply = self._make_reply(tmp_path, REQUEST_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=True, auto_reject=True)
         assert not called
 
 

@@ -90,11 +90,38 @@ def _archive_task(task_path: Path, archive_dir: Path) -> bool:
     return True
 
 
+def _extract_reject_reason(reply_text: str) -> str:
+    """review_reply.md から reject 理由を抽出する。
+
+    優先順: Required changes の先頭箇条書き → Issues の先頭箇条書き → デフォルト文字列
+    """
+    for section in ("Required changes", "Issues"):
+        body = _parse_section(reply_text, section)
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("- ") and stripped[2:].strip():
+                return stripped[2:].strip()
+    return "request_changes by AI review"
+
+
 def _run_cycle_approve() -> bool:
     """cycle_manager approve をサブプロセスで実行する。成功なら True（fail-open）。"""
     try:
         r = subprocess.run(
             [sys.executable, "-m", "tools.ai_orchestrator.cycle_manager", "approve"],
+            cwd=REPO_ROOT,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _run_cycle_reject(reason: str) -> bool:
+    """cycle_manager reject をサブプロセスで実行する。成功なら True（fail-open）。"""
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "tools.ai_orchestrator.cycle_manager", "reject",
+             "--reason", reason],
             cwd=REPO_ROOT,
         )
         return r.returncode == 0
@@ -108,6 +135,7 @@ def apply_review(
     dry_run: bool = False,
     auto_approve: bool = False,
     auto_archive: bool = False,
+    auto_reject: bool = False,
 ) -> int:
     """0: success, 1: error"""
     if not reply_path.exists():
@@ -168,6 +196,13 @@ def apply_review(
         print("Decision: Request changes")
         print("Updated: none")
         print("Next: 上記の変更を実施後、再度 fill_result → レビュー依頼")
+        if auto_reject and not dry_run:
+            reason = _extract_reject_reason(reply_text)
+            if _run_cycle_reject(reason):
+                print(f"[OK] cycle_manager reject 完了 (reason: {reason[:80]})")
+            else:
+                print("[WARN] cycle_manager reject 失敗")
+                print(f"       手動で実行: venv/Scripts/python -m tools.ai_orchestrator.cycle_manager reject --reason \"{reason}\"")
     return 0
 
 
@@ -185,9 +220,11 @@ def main() -> None:
                         help="Approve 時に cycle_manager approve を自動実行（opt-in）")
     parser.add_argument("--auto-archive", action="store_true", dest="auto_archive",
                         help="Approve 時に task.md を done に更新して archive へ移動（opt-in）")
+    parser.add_argument("--auto-reject", action="store_true", dest="auto_reject",
+                        help="Request changes 時に cycle_manager reject を自動実行（opt-in）")
     args = parser.parse_args()
 
-    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run, args.auto_approve, args.auto_archive))
+    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run, args.auto_approve, args.auto_archive, args.auto_reject))
 
 
 if __name__ == "__main__":
