@@ -122,6 +122,22 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 - result.md is gitignored; copy from docs/handoff/result.md.template if it does not exist
 
 ## Review flow (正式手順)
+
+### OPENAI_API_KEY 設定済みの場合（短縮フロー）
+```
+# 1. テスト実行 → review_reply.md まで自動生成
+venv/Scripts/python -m tools.ai_orchestrator.loop_runner \
+  --test-cmd "venv/Scripts/python -m pytest tests/ -q --tb=short" \
+  --files <変更ファイル> --summary "説明" --auto-review
+
+# 2. review_reply.md を確認後:
+venv/Scripts/python -m tools.ai_orchestrator.apply_review --auto-approve --auto-archive
+
+# 3. push
+git push
+```
+
+### OPENAI_API_KEY 未設定の場合（手動フロー）
 ```
 # 1. review_request 生成・verify・クリップボード載せ
 scripts\run_verify_copy_review_request.bat
