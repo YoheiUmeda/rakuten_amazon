@@ -52,14 +52,7 @@ SECRETS_PATTERNS = [
 # auto-allow スコープ（scope 外は WARNING のみ）
 ALLOWED_SCOPE_PATTERNS = [
     "tools/ai_orchestrator/*",
-    "tests/test_cycle_manager.py",
-    "tests/test_loop_runner.py",
-    "tests/test_cycle_to_review_request.py",
-    "tests/test_run_cycle_review.py",
-    "tests/test_safe_commit.py",
-    "tests/test_review_summary.py",
-    "tests/test_fill_result.py",
-    "tests/test_apply_review.py",
+    "tests/test_*.py",
     "docs/automation/auto_mode_spec.md",
     "CLAUDE.md",
 ]

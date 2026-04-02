@@ -95,12 +95,14 @@ def test_normal_commit(monkeypatch, capsys):
     assert "[OK] committed" in capsys.readouterr().out
 
 
-def test_test_review_summary_and_fill_result_in_scope():
-    """tests/test_review_summary.py と tests/test_fill_result.py はスコープ内。"""
-    assert sc._is_in_scope("tests/test_review_summary.py")
-    assert sc._is_in_scope("tests/test_fill_result.py")
-
-
-def test_test_apply_review_in_scope():
-    """tests/test_apply_review.py はスコープ内。"""
+def test_tests_wildcard_in_scope():
+    """tests/test_*.py はすべてスコープ内。"""
     assert sc._is_in_scope("tests/test_apply_review.py")
+    assert sc._is_in_scope("tests/test_price_calculation.py")
+    assert sc._is_in_scope("tests/test_safe_commit.py")
+
+
+def test_non_test_files_out_of_scope():
+    """docs/ の汎用ファイルはスコープ外。"""
+    assert not sc._is_in_scope("docs/example.md")
+    assert not sc._is_in_scope("docs/handoff/result.md")
