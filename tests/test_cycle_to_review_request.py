@@ -198,6 +198,57 @@ def test_summary_absent_when_file_missing(tmp_path, no_git_diff):
     assert "summary" not in data
 
 
+# ── _git_diff ────────────────────────────────────────────────────────────
+
+class TestGitDiff:
+    """_git_diff の fallback ロジックをテストする。"""
+
+    def _make_fake_run(self, first_stdout: str, second_stdout: str = "", second_rc: int = 0):
+        """1回目・2回目の subprocess.run 結果を制御するフェイク。"""
+        from types import SimpleNamespace
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(list(cmd))
+            if len(calls) == 1:
+                return SimpleNamespace(returncode=0, stdout=first_stdout)
+            return SimpleNamespace(returncode=second_rc, stdout=second_stdout)
+
+        return fake_run, calls
+
+    def test_primary_nonempty_returned_directly(self, monkeypatch):
+        """base_commit..HEAD が非空のとき、そのまま返す（fallback は呼ばない）。"""
+        fake_run, calls = self._make_fake_run(first_stdout="diff output")
+        monkeypatch.setattr(ctr.subprocess, "run", fake_run)
+        result = ctr._git_diff("abc0000")
+        assert result == "diff output"
+        assert len(calls) == 1
+
+    def test_primary_empty_fallback_returned(self, monkeypatch):
+        """base_commit..HEAD が空のとき、fallback base_commit^..base_commit を返す。"""
+        fake_run, calls = self._make_fake_run(first_stdout="", second_stdout="fallback diff")
+        monkeypatch.setattr(ctr.subprocess, "run", fake_run)
+        result = ctr._git_diff("abc0000")
+        assert result == "fallback diff"
+        assert len(calls) == 2
+
+    def test_empty_base_commit_returns_empty(self, monkeypatch):
+        """base_commit が空文字のとき、subprocess を呼ばずに空文字を返す。"""
+        fake_run, calls = self._make_fake_run(first_stdout="should not be called")
+        monkeypatch.setattr(ctr.subprocess, "run", fake_run)
+        result = ctr._git_diff("")
+        assert result == ""
+        assert len(calls) == 0
+
+    def test_fallback_fails_returns_empty(self, monkeypatch):
+        """fallback 実行時に returncode != 0 のとき、空文字を返す。"""
+        fake_run, calls = self._make_fake_run(first_stdout="", second_stdout="", second_rc=1)
+        monkeypatch.setattr(ctr.subprocess, "run", fake_run)
+        result = ctr._git_diff("abc0000")
+        assert result == ""
+        assert len(calls) == 2
+
+
 # ── helper ────────────────────────────────────────────────────────────────
 
 def _run(mod, output_path: Path, task_md_path: Path | None = None, review_summary_path: Path | None = None):

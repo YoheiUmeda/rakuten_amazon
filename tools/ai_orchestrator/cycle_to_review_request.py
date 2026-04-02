@@ -27,7 +27,7 @@ REVIEW_SUMMARY_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
 
 
 def _git_diff(base_commit: str) -> str:
-    """base_commit..HEAD の diff を返す。失敗時は空文字。"""
+    """base_commit..HEAD の diff を返す。空の場合は base_commit^..base_commit を試みる（fail-open）。"""
     if not base_commit:
         return ""
     try:
@@ -35,7 +35,15 @@ def _git_diff(base_commit: str) -> str:
             ["git", "diff", f"{base_commit}..HEAD"],
             capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
         )
-        return r.stdout if r.returncode == 0 else ""
+        diff = r.stdout if r.returncode == 0 else ""
+        if diff:
+            return diff
+        # fallback: base_commit == HEAD のとき（start 後にコミット済みのケース）
+        r2 = subprocess.run(
+            ["git", "diff", f"{base_commit}^..{base_commit}"],
+            capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
+        )
+        return r2.stdout if r2.returncode == 0 else ""
     except Exception:
         return ""
 
