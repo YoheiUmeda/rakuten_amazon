@@ -127,7 +127,7 @@ def main() -> None:
     # ── scope 外 WARNING ──────────────────────────────────────────────────
     out_of_scope = [f for f in staged if not _is_in_scope(f)]
     if out_of_scope:
-        print("[WARNING] auto-allow スコープ外のファイルが含まれています:")
+        print("[WARNING] スコープ外ファイルを検出しました（コミットは続行・手動確認推奨）:")
         for f in out_of_scope:
             print(f"  {f}")
 

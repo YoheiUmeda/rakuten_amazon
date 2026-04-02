@@ -44,7 +44,7 @@ def _run(monkeypatch, staged: list[str], message: str = "fix: something"):
 
     out_of_scope = [f for f in files if not sc._is_in_scope(f)]
     if out_of_scope:
-        print(f"[WARNING] scope 外: {out_of_scope}")
+        print(f"[WARNING] スコープ外ファイルを検出しました（コミットは続行・手動確認推奨）: {out_of_scope}")
 
     r = sc.subprocess.run(["git", "commit", "-m", msg], cwd=sc.REPO_ROOT)
     if r.returncode != 0:
