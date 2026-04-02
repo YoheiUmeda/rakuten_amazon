@@ -54,6 +54,8 @@ Use normal flow when any applies:
 - Design decisions required
 - Safety conditions touched (fee / pass_filter / secrets / credentials)
 
+Use /plan only for complex/high-risk/multi-step changes; normal flow is: inspect → diff → implement.
+
 ## Safety rules
 - Never commit secrets
 - Never edit .env directly without explicit instruction
