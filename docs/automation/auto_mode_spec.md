@@ -192,6 +192,11 @@ fail 方針:
 - `[OK] review_request.json 生成完了` ← Step 1 完了
 - `[OK] review_reply.md 生成完了`     ← Step 2 完了（API 呼び出し含む）
 
+## 承認件数の運用メモ
+
+- `git push` の手動承認は ask ルール上の正常動作（意図的）
+- `cd C:/... && git ...` 形式は auto-allow パターンに不一致となり avoidable な承認が発生するため使わない
+
 ## Phase 3 以降（未実装）
 
 - 修正ループの自動継続
