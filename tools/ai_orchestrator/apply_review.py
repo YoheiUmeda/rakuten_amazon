@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -39,10 +40,23 @@ def _parse_decision(reply_text: str) -> str:
     return ""
 
 
+def _run_cycle_approve() -> bool:
+    """cycle_manager approve をサブプロセスで実行する。成功なら True（fail-open）。"""
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "tools.ai_orchestrator.cycle_manager", "approve"],
+            cwd=REPO_ROOT,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def apply_review(
     reply_path: Path = REVIEW_REPLY_MD,
     result_path: Path = RESULT_MD,
     dry_run: bool = False,
+    auto_approve: bool = False,
 ) -> int:
     """0: success, 1: error"""
     if not reply_path.exists():
@@ -74,6 +88,13 @@ def apply_review(
         print("Decision: Approve")
         print(f"Updated: {'result.md' if changed and not dry_run else 'none'}")
         print("Next: task.md の status を done にして archive へ移動する")
+        if auto_approve and not dry_run:
+            if _run_cycle_approve():
+                print("[OK] cycle_manager approve 完了")
+            else:
+                print("[WARN] cycle_manager approve 失敗")
+                print("       result.md は更新済み / cycle は未確定")
+                print("       手動で実行: venv/Scripts/python -m tools.ai_orchestrator.cycle_manager approve")
     else:
         issues = _parse_section(reply_text, "Issues")
         required = _parse_section(reply_text, "Required changes")
@@ -97,9 +118,11 @@ def main() -> None:
     parser.add_argument("--reply", default=str(REVIEW_REPLY_MD), help="review_reply.md のパス")
     parser.add_argument("--result", default=str(RESULT_MD), help="result.md のパス")
     parser.add_argument("--dry-run", action="store_true", help="ファイル変更なし")
+    parser.add_argument("--auto-approve", action="store_true", dest="auto_approve",
+                        help="Approve 時に cycle_manager approve を自動実行（opt-in）")
     args = parser.parse_args()
 
-    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run))
+    sys.exit(apply_review(Path(args.reply), Path(args.result), args.dry_run, args.auto_approve))
 
 
 if __name__ == "__main__":

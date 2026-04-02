@@ -1,6 +1,7 @@
 # tests/test_apply_review.py
 from pathlib import Path
 
+import tools.ai_orchestrator.apply_review as mod
 from tools.ai_orchestrator.apply_review import _parse_decision, _parse_section, apply_review
 
 APPROVE_REPLY = """\
@@ -99,3 +100,38 @@ class TestApplyReview:
         result = self._make_result(tmp_path)
         rc = apply_review(reply, result)
         assert rc == 1
+
+    def test_auto_approve_calls_cycle_approve(self, tmp_path, monkeypatch):
+        """auto_approve=True + approve → _run_cycle_approve が呼ばれる。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: called.append(True) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_approve=True)
+        assert called
+
+    def test_auto_approve_skipped_on_dry_run(self, tmp_path, monkeypatch):
+        """dry_run=True のとき _run_cycle_approve は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: called.append(True) or True)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=True, auto_approve=True)
+        assert not called
+
+    def test_auto_approve_skipped_on_request_changes(self, tmp_path, monkeypatch):
+        """decision=request_changes のとき _run_cycle_approve は呼ばれない。"""
+        called = []
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: called.append(True) or True)
+        reply = self._make_reply(tmp_path, REQUEST_REPLY)
+        result = self._make_result(tmp_path)
+        apply_review(reply, result, dry_run=False, auto_approve=True)
+        assert not called
+
+    def test_auto_approve_failure_returns_zero(self, tmp_path, monkeypatch):
+        """_run_cycle_approve 失敗時も rc=0 で返る（fail-open）。"""
+        monkeypatch.setattr(mod, "_run_cycle_approve", lambda: False)
+        reply = self._make_reply(tmp_path, APPROVE_REPLY)
+        result = self._make_result(tmp_path)
+        rc = apply_review(reply, result, dry_run=False, auto_approve=True)
+        assert rc == 0
