@@ -34,6 +34,7 @@ All of the following must hold:
 - Existing tests clearly not broken
 
 Do not use /plan.
+No /plan for run-only/review-only/execution-only tasks either. If Plan Mode auto-starts, exit immediately and continue without saving.
 Do not create or update a plan file.
 Implement directly.
 
