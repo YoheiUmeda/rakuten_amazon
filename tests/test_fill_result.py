@@ -13,7 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from tools.ai_orchestrator.fill_result import _read_task_id, _read_task_purpose, build_result_md
+from tools.ai_orchestrator.fill_result import (
+    _build_conclusion_from_state,
+    _build_concerns_from_state,
+    _read_task_id,
+    _read_task_purpose,
+    build_result_md,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"
@@ -190,6 +196,104 @@ class TestBuildResultMd:
     def test_impact_scope_section_exists(self):
         md = self._build()
         assert "## 影響範囲" in md
+
+    def test_concerns_todo_when_no_cycle_state(self):
+        md = self._build()
+        assert "## 未確定点・懸念" in md
+        assert "TODO" in md
+
+    def test_concerns_nashi_when_ng_history_empty(self):
+        state = {"ng_history": [], "loops": []}
+        md = self._build(cycle_state=state)
+        assert "なし" in md
+        assert "TODO" not in md.split("## 未確定点・懸念")[1].split("##")[0]
+
+    def test_concerns_from_ng_history(self):
+        state = {
+            "ng_history": [
+                {"reason": "テスト失敗: assertion error"},
+                {"reason": "スコープ外変更"},
+            ],
+            "loops": [],
+        }
+        md = self._build(cycle_state=state)
+        section = md.split("## 未確定点・懸念")[1].split("##")[0]
+        assert "テスト失敗: assertion error" in section
+        assert "スコープ外変更" in section
+
+    def test_conclusion_from_cycle_state(self):
+        state = {
+            "ng_history": [],
+            "loops": [{"summary": "XX を修正", "test_result": "pass"}],
+        }
+        md = self._build(conclusion="", cycle_state=state)
+        assert "XX を修正" in md
+        assert "テスト: pass" in md
+        assert "TODO" not in md.split("## 結論")[1].split("##")[0]
+
+    def test_conclusion_arg_overrides_cycle_state(self):
+        state = {
+            "ng_history": [],
+            "loops": [{"summary": "XX を修正", "test_result": "pass"}],
+        }
+        md = self._build(conclusion="手書き結論", cycle_state=state)
+        assert "手書き結論" in md
+        assert "XX を修正" not in md.split("## 結論")[1].split("##")[0]
+
+    def test_conclusion_todo_when_state_has_no_loops(self):
+        state = {"ng_history": [], "loops": []}
+        md = self._build(conclusion="", cycle_state=state)
+        assert "TODO" in md.split("## 結論")[1].split("##")[0]
+
+
+# ── _build_conclusion_from_state ─────────────────────────────────────────
+
+class TestBuildConclusionFromState:
+
+    def test_returns_summary_and_test_result(self):
+        state = {"loops": [{"summary": "foo を修正", "test_result": "pass"}]}
+        assert _build_conclusion_from_state(state) == "foo を修正。テスト: pass。"
+
+    def test_no_test_result_returns_summary_only(self):
+        state = {"loops": [{"summary": "foo を修正", "test_result": ""}]}
+        assert _build_conclusion_from_state(state) == "foo を修正"
+
+    def test_empty_loops_returns_empty(self):
+        assert _build_conclusion_from_state({"loops": []}) == ""
+
+    def test_uses_last_loop(self):
+        state = {"loops": [
+            {"summary": "first", "test_result": "pass"},
+            {"summary": "second", "test_result": "fail"},
+        ]}
+        result = _build_conclusion_from_state(state)
+        assert "second" in result
+        assert "first" not in result
+
+
+# ── _build_concerns_from_state ────────────────────────────────────────────
+
+class TestBuildConcernsFromState:
+
+    def test_empty_ng_history_returns_nashi(self):
+        assert _build_concerns_from_state({"ng_history": []}) == "なし"
+
+    def test_missing_ng_history_returns_nashi(self):
+        assert _build_concerns_from_state({}) == "なし"
+
+    def test_ng_history_returns_reason_list(self):
+        state = {"ng_history": [
+            {"reason": "テスト失敗"},
+            {"reason": "スコープ外"},
+        ]}
+        result = _build_concerns_from_state(state)
+        assert "- テスト失敗" in result
+        assert "- スコープ外" in result
+
+    def test_skips_empty_reason(self):
+        state = {"ng_history": [{"reason": ""}, {"reason": "有効な理由"}]}
+        result = _build_concerns_from_state(state)
+        assert result == "- 有効な理由"
 
 
 # ──────────────────────────────────────────────────────────────────────────

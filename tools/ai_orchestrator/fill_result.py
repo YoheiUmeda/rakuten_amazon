@@ -34,6 +34,7 @@ from tools.ai_orchestrator.generate_review_request import (
 
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
 TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
+CYCLE_STATE_PATH = REPO_ROOT / ".ai" / "state" / "cycle_state.json"
 RESULT_MD_URL = (
     "https://github.com/YoheiUmeda/rakuten_amazon"
     "/blob/main/docs/handoff/result.md"
@@ -113,6 +114,40 @@ def _now_jst() -> str:
     return datetime.now(jst).strftime("%Y-%m-%dT%H:%M:%S+09:00")
 
 
+def _read_cycle_state() -> dict | None:
+    """cycle_state.json を読んで返す。存在しない・読めない場合は None（fail-open）。"""
+    try:
+        if not CYCLE_STATE_PATH.exists():
+            return None
+        import json
+        return json.loads(CYCLE_STATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _build_conclusion_from_state(state: dict) -> str:
+    """cycle_state の最後の loop summary と test_result から conclusion の叩き台を生成する。"""
+    loops = state.get("loops", [])
+    if not loops:
+        return ""
+    last = loops[-1]
+    summary = last.get("summary", "").strip()
+    test_result = last.get("test_result", "")
+    if not summary:
+        return ""
+    if test_result:
+        return f"{summary}。テスト: {test_result}。"
+    return summary
+
+
+def _build_concerns_from_state(state: dict) -> str:
+    """ng_history から未確定点・懸念の叩き台を生成する。空なら「なし」。"""
+    ng_history = state.get("ng_history", [])
+    if not ng_history:
+        return "なし"
+    return "\n".join(f"- {h['reason']}" for h in ng_history if h.get("reason"))
+
+
 def build_result_md(
     task_id: str,
     generated_at: str,
@@ -122,16 +157,31 @@ def build_result_md(
     test_output: str,
     purpose: str = "",
     review_focus: list[str] | None = None,
+    cycle_state: dict | None = None,
 ) -> str:
-    """result.md の全文を返す。"""
+    """result.md の全文を返す。cycle_state を渡すと conclusion / 懸念点を自動補完する。"""
     files_block = "\n".join(f"- {f}" for f in changed_files) if changed_files else "-"
-    conclusion_text = conclusion if conclusion else "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
+
+    # conclusion: 引数優先、なければ cycle_state から生成、それもなければ TODO
+    if conclusion:
+        conclusion_text = conclusion
+    elif cycle_state:
+        conclusion_text = _build_conclusion_from_state(cycle_state) or "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
+    else:
+        conclusion_text = "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
+
     purpose_text = purpose if purpose else "<!-- TODO: task.md の「タスク」から1〜2行でコピー -->"
     test_block = test_output.strip() if test_output else ""
     if review_focus:
         focus_block = "\n".join(f"- {f}" for f in review_focus)
     else:
         focus_block = "<!-- TODO: ChatGPT に特に見てほしい点。なければ「なし」 -->"
+
+    # 未確定点・懸念: cycle_state があれば ng_history から生成
+    if cycle_state is not None:
+        concerns_text = _build_concerns_from_state(cycle_state)
+    else:
+        concerns_text = "<!-- TODO: Claude が判断できなかった点、次に確認してほしいこと。なければ「なし」 -->"
 
     return f"""\
 ---
@@ -179,7 +229,7 @@ secrets_checked: false
 <!-- TODO: 警告・エラー・重要なログ行。不要なら「なし」と書く。 -->
 
 ## 未確定点・懸念
-<!-- TODO: Claude が判断できなかった点、次に確認してほしいこと。なければ「なし」 -->
+{concerns_text}
 
 ## 重点レビュー観点
 {focus_block}
@@ -236,6 +286,7 @@ def main() -> None:
     diff = get_git_diff(args.staged, changed_files)
     test_output = run_test_command(args.test_cmd) if args.run_tests and args.test_cmd else ""
     purpose = args.purpose or _read_task_purpose()
+    cycle_state = _read_cycle_state()
 
     content = build_result_md(
         task_id=task_id,
@@ -246,6 +297,7 @@ def main() -> None:
         test_output=test_output,
         purpose=purpose,
         review_focus=args.review_focus,
+        cycle_state=cycle_state,
     )
 
     if args.dry_run:
