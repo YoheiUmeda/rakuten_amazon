@@ -35,6 +35,7 @@ from tools.ai_orchestrator.generate_review_request import (
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
 TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
 CYCLE_STATE_PATH = REPO_ROOT / ".ai" / "state" / "cycle_state.json"
+REVIEW_REQUEST_PATH = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
 RESULT_MD_URL = (
     "https://github.com/YoheiUmeda/rakuten_amazon"
     "/blob/main/docs/handoff/result.md"
@@ -123,6 +124,19 @@ def _read_cycle_state() -> dict | None:
         return json.loads(CYCLE_STATE_PATH.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+def _read_open_questions(review_request_path: Path) -> list[str]:
+    """review_request.json の open_questions を返す。なければ空リスト（fail-open）。"""
+    if not review_request_path.exists():
+        return []
+    try:
+        import json
+        data = json.loads(review_request_path.read_text(encoding="utf-8"))
+        questions = data.get("open_questions", [])
+        return [q for q in questions if isinstance(q, str) and q.strip()]
+    except Exception:
+        return []
 
 
 def _build_conclusion_from_state(state: dict) -> str:
@@ -287,6 +301,7 @@ def main() -> None:
     test_output = run_test_command(args.test_cmd) if args.run_tests and args.test_cmd else ""
     purpose = args.purpose or _read_task_purpose()
     cycle_state = _read_cycle_state()
+    review_focus = args.review_focus or _read_open_questions(REVIEW_REQUEST_PATH)
 
     content = build_result_md(
         task_id=task_id,
@@ -296,7 +311,7 @@ def main() -> None:
         diff=diff,
         test_output=test_output,
         purpose=purpose,
-        review_focus=args.review_focus,
+        review_focus=review_focus,
         cycle_state=cycle_state,
     )
 

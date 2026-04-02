@@ -16,6 +16,7 @@ import pytest
 from tools.ai_orchestrator.fill_result import (
     _build_conclusion_from_state,
     _build_concerns_from_state,
+    _read_open_questions,
     _read_task_id,
     _read_task_purpose,
     build_result_md,
@@ -294,6 +295,52 @@ class TestBuildConcernsFromState:
         state = {"ng_history": [{"reason": ""}, {"reason": "有効な理由"}]}
         result = _build_concerns_from_state(state)
         assert result == "- 有効な理由"
+
+
+# ── _read_open_questions ──────────────────────────────────────────────────
+
+class TestReadOpenQuestions:
+
+    def test_returns_questions(self, tmp_path):
+        import json
+        f = tmp_path / "review_request.json"
+        f.write_text(json.dumps({"open_questions": ["疑問A", "疑問B"]}), encoding="utf-8")
+        assert _read_open_questions(f) == ["疑問A", "疑問B"]
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        assert _read_open_questions(tmp_path / "no.json") == []
+
+    def test_no_open_questions_key_returns_empty(self, tmp_path):
+        import json
+        f = tmp_path / "review_request.json"
+        f.write_text(json.dumps({"task": "foo"}), encoding="utf-8")
+        assert _read_open_questions(f) == []
+
+    def test_broken_json_returns_empty(self, tmp_path):
+        f = tmp_path / "review_request.json"
+        f.write_text("not json", encoding="utf-8")
+        assert _read_open_questions(f) == []
+
+    def test_empty_strings_filtered_out(self, tmp_path):
+        import json
+        f = tmp_path / "review_request.json"
+        f.write_text(json.dumps({"open_questions": ["有効", "", "  "]}), encoding="utf-8")
+        assert _read_open_questions(f) == ["有効"]
+
+    def test_review_focus_from_open_questions_in_build(self, tmp_path):
+        """open_questions が review_focus として build_result_md に渡ると出力に含まれること。"""
+        result = build_result_md(
+            task_id="0001",
+            generated_at="2026-01-01T00:00:00+09:00",
+            conclusion="テスト",
+            changed_files=["foo.py"],
+            diff="",
+            test_output="",
+            review_focus=["疑問A", "疑問B"],
+        )
+        assert "疑問A" in result
+        assert "疑問B" in result
+        assert "TODO" not in result.split("## 重点レビュー観点")[1].split("##")[0]
 
 
 # ──────────────────────────────────────────────────────────────────────────
