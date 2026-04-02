@@ -198,6 +198,7 @@ fail 方針:
 - `cd C:/... && git ...` 形式は auto-allow パターンに不一致となり avoidable な承認が発生するため使わない
 - Approve の通常実行は `apply_review --auto-approve` を基本とする（`cycle_manager approve` の手動実行は不要）
 - `apply_review --auto-approve --auto-archive` で task.md の done化・archive移動まで自動化できる（--auto-approve 成功時のみ）
+- OPENAI_API_KEY が .env に設定済みなら `loop_runner --auto-review` で review_reply.md まで自動生成できる
 
 ## Phase 3 以降（未実装）
 
