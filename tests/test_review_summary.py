@@ -146,3 +146,10 @@ class TestBuildNextInstructionDraft:
         for section in ["## ステータス", "## 次のアクション", "## 対象ファイル",
                         "## 直近ループの要約", "## 修正理由 / 懸念点"]:
             assert section in draft
+
+    def test_stopped_shows_stopped_label(self, tmp_path):
+        state = _state(status="stopped")
+        state["stop_reason"] = "スコープ外変更が検出された"
+        draft = build_next_instruction_draft(state, tmp_path / "no.md")
+        assert "⛔ 作業停止" in draft
+        assert "スコープ外変更が検出された" in draft

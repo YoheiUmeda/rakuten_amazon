@@ -92,6 +92,15 @@ def build_next_instruction_draft(
             concerns = "\n".join(f"- {r}" for r in ng_reasons)
         else:
             concerns = "- ChatGPT が修正を要求しています（review_reply.md を確認してください）"
+    elif status == "stopped":
+        status_label = "⛔ 作業停止"
+        stop_reason = state.get("stop_reason") or "(理由不明)"
+        action = (
+            f"**{goal}** のサイクルが停止しました。\n"
+            f"停止理由: {stop_reason}\n"
+            "担当者に原因と対応方針を確認してください。"
+        )
+        concerns = "\n".join(f"- {r}" for r in ng_reasons) if ng_reasons else "なし"
     else:
         status_label = "⏳ レビュー待ち"
         action = (
