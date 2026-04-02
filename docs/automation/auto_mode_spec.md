@@ -196,6 +196,7 @@ fail 方針:
 
 - `git push` の手動承認は ask ルール上の正常動作（意図的）
 - `cd C:/... && git ...` 形式は auto-allow パターンに不一致となり avoidable な承認が発生するため使わない
+- Approve の通常実行は `apply_review --auto-approve` を基本とする（`cycle_manager approve` の手動実行は不要）
 
 ## Phase 3 以降（未実装）
 
