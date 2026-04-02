@@ -45,6 +45,7 @@ def main() -> None:
         description="pending_review → review_request.json → review_reply.md"
     )
     parser.add_argument("--test-cmd", default="", help="テストコマンド（任意）")
+    parser.add_argument("--test-output", default="", help="テスト出力（loop_runner から渡される）")
     parser.add_argument("--model", default=None, help="OpenAI モデル（省略時: OPENAI_MODEL env）")
     parser.add_argument("--dry-run", action="store_true", help="orchestrator をスキップ")
     args = parser.parse_args()
@@ -56,6 +57,8 @@ def main() -> None:
                "--output", str(DEFAULT_REQUEST)]
     if args.test_cmd:
         ctr_cmd += ["--test-cmd", args.test_cmd]
+    if args.test_output:
+        ctr_cmd += ["--test-output", args.test_output]
 
     print("[run_cycle_review] Step 1: cycle_to_review_request")
     r = subprocess.run(ctr_cmd, cwd=REPO_ROOT)

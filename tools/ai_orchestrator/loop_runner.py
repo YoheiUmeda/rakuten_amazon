@@ -99,7 +99,15 @@ def main() -> None:
     # ── テスト実行 ────────────────────────────────────────────────────────
     print(f"[INFO] テスト実行: {args.test_cmd}")
     test_cmd = _normalize_test_cmd_for_windows(args.test_cmd)
-    result = subprocess.run(test_cmd, shell=True, cwd=REPO_ROOT)
+    result = subprocess.run(
+        test_cmd, shell=True, cwd=REPO_ROOT,
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="")
+    test_output = (result.stdout or "") + (result.stderr or "")
     test_result = "pass" if result.returncode == 0 else "fail"
     print(f"[INFO] test={test_result}")
 
@@ -130,10 +138,10 @@ def main() -> None:
             print("[INFO] --auto-review: run_cycle_review を実行します")
             venv_py = REPO_ROOT / "venv" / "Scripts" / "python.exe"
             py = str(venv_py) if venv_py.exists() else sys.executable
-            r = subprocess.run(
-                [py, "-m", "tools.ai_orchestrator.run_cycle_review"],
-                cwd=REPO_ROOT,
-            )
+            rcr_cmd = [py, "-m", "tools.ai_orchestrator.run_cycle_review"]
+            if test_output:
+                rcr_cmd += ["--test-output", test_output]
+            r = subprocess.run(rcr_cmd, cwd=REPO_ROOT)
             if r.returncode != 0:
                 print("[ERROR] run_cycle_review 失敗")
                 sys.exit(1)

@@ -46,7 +46,7 @@ def _run(monkeypatch, fake_run, api_key: str | None = "test-key", dry_run: bool 
     else:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    args = Namespace(test_cmd="", model=model, dry_run=dry_run)
+    args = Namespace(test_cmd="", test_output="", model=model, dry_run=dry_run)
     _execute(args)
 
 
@@ -59,6 +59,8 @@ def _execute(args):
     ctr_cmd = [py, "-m", _CTR_MODULE, "--output", str(rcr.DEFAULT_REQUEST)]
     if args.test_cmd:
         ctr_cmd += ["--test-cmd", args.test_cmd]
+    if args.test_output:
+        ctr_cmd += ["--test-output", args.test_output]
 
     print("[run_cycle_review] Step 1: cycle_to_review_request")
     r = rcr.subprocess.run(ctr_cmd, cwd=rcr.REPO_ROOT)
@@ -147,6 +149,26 @@ def test_orch_fails(monkeypatch, capsys):
         _run(monkeypatch, fake_run, api_key="sk-test")
     assert exc.value.code == 1
     assert "orchestrator 失敗" in capsys.readouterr().out
+
+
+def test_test_output_passed_to_ctr(monkeypatch, capsys):
+    """--test-output が ctr_cmd に --test-output として渡される。"""
+    from argparse import Namespace
+
+    fake_run, calls = _make_fake_subprocess(ctr_rc=0, orch_rc=0)
+    monkeypatch.setattr(rcr.subprocess, "run", fake_run)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    args = Namespace(test_cmd="", test_output="366 passed\n", model=None, dry_run=False)
+    with pytest.raises(SystemExit):
+        _execute(args)
+
+    ctr_calls = [c for c in calls if _is_ctr(c)]
+    assert ctr_calls, "ctr が呼ばれていない"
+    ctr_cmd = ctr_calls[0]
+    assert "--test-output" in ctr_cmd
+    idx = ctr_cmd.index("--test-output")
+    assert "366 passed" in ctr_cmd[idx + 1]
 
 
 def test_load_dotenv_called_and_key_used(monkeypatch, capsys):
