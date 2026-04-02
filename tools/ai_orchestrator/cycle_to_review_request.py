@@ -22,6 +22,33 @@ from pathlib import Path
 from tools.ai_orchestrator.cycle_manager import REPO_ROOT, load_state
 
 DEFAULT_OUTPUT = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
+
+# ── review_mode detection ─────────────────────────────────────────────────────
+_VERIFICATION_KEYWORDS = frozenset({
+    "verification", "flow確認", "実戦確認", "handoff", "false positive",
+    "metadata", "clarif", "test_log_path", "review_mode", "review_request",
+    "review_summary", "loop_runner", "orchestrat", "auto_review", "auto-review",
+    "サイクル", "cycle",
+})
+_ORCHESTRATOR_PATH_PREFIXES = (
+    "tools/ai_orchestrator/",
+    "tests/test_cycle",
+    "tests/test_loop",
+    "tests/test_run_cycle",
+    "tests/test_review",
+)
+
+
+def _detect_review_mode(goal: str, changed_files: list[str]) -> str:
+    """goal・changed_files からレビューモードを判定する（fail-open: 不明なら production）。"""
+    if any(kw in goal.lower() for kw in _VERIFICATION_KEYWORDS):
+        return "verification"
+    if changed_files and all(
+        any(f.replace("\\", "/").startswith(p) for p in _ORCHESTRATOR_PATH_PREFIXES)
+        for f in changed_files
+    ):
+        return "verification"
+    return "production"
 TASK_MD_PATH = REPO_ROOT / "docs" / "handoff" / "task.md"
 REVIEW_SUMMARY_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
 
@@ -117,11 +144,20 @@ def build_review_request(
                 changed_files.append(f)
                 seen.add(f)
 
+    review_mode = _detect_review_mode(task, changed_files)
     result: dict = {
         "task": task,
         "changed_files": changed_files,
         "git_diff": _git_diff(state.get("base_commit", "")),
+        "review_mode": review_mode,
     }
+    if review_mode == "verification":
+        result["expected_non_blockers"] = [
+            "result_status_missing_ok",
+            "task_archive_skip_ok",
+            "standalone_optional_arg_path",
+        ]
+        result["automation_path"] = ["auto_review", "auto_approve", "auto_archive", "auto_reject"]
     if test_cmd:
         result["test_command"] = test_cmd
     if test_output:

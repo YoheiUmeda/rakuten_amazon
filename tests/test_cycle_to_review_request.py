@@ -212,6 +212,33 @@ def test_test_log_path_absent_when_empty(tmp_path, no_git_diff):
     assert "test_log_path" not in data
 
 
+# ── review_mode / metadata ────────────────────────────────────────────────
+
+def test_review_mode_verification_by_keyword(no_git_diff):
+    """goal に verification キーワードが含まれる場合、review_mode = 'verification'。"""
+    state = _pending_state(goal="review_request metadata for false positive reduction")
+    data = ctr.build_review_request(state)
+    assert data["review_mode"] == "verification"
+    assert "expected_non_blockers" in data
+    assert "automation_path" in data
+
+
+def test_review_mode_verification_by_files(no_git_diff):
+    """全 changed_files が orchestrator/tests 配下なら review_mode = 'verification'。"""
+    state = _pending_state(goal="fix something", changed_files=["tools/ai_orchestrator/foo.py"])
+    data = ctr.build_review_request(state)
+    assert data["review_mode"] == "verification"
+
+
+def test_review_mode_production(no_git_diff):
+    """通常の業務ファイル変更は review_mode = 'production'、expected_non_blockers なし。"""
+    state = _pending_state(goal="update price calculation", changed_files=["price_calculation.py"])
+    data = ctr.build_review_request(state)
+    assert data["review_mode"] == "production"
+    assert "expected_non_blockers" not in data
+    assert "automation_path" not in data
+
+
 # ── _git_diff ────────────────────────────────────────────────────────────
 
 class TestGitDiff:
