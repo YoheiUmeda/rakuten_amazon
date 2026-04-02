@@ -59,6 +59,7 @@ ALLOWED_SCOPE_PATTERNS = [
     "tests/test_safe_commit.py",
     "tests/test_review_summary.py",
     "tests/test_fill_result.py",
+    "tests/test_apply_review.py",
     "docs/automation/auto_mode_spec.md",
     "CLAUDE.md",
 ]

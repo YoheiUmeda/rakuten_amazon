@@ -99,3 +99,8 @@ def test_test_review_summary_and_fill_result_in_scope():
     """tests/test_review_summary.py と tests/test_fill_result.py はスコープ内。"""
     assert sc._is_in_scope("tests/test_review_summary.py")
     assert sc._is_in_scope("tests/test_fill_result.py")
+
+
+def test_test_apply_review_in_scope():
+    """tests/test_apply_review.py はスコープ内。"""
+    assert sc._is_in_scope("tests/test_apply_review.py")
