@@ -55,8 +55,8 @@ def get_keepa_summary(asins: List[str]) -> Dict[str, Dict[str, Any]]:
     url = "https://api.keepa.com/product"
     headers = {"Accept-Encoding": "gzip"}
 
-    # ※ 元コードでは domain=6。挙動を変えないためそのまま維持。
-    domain = int(os.getenv("KEEPA_DOMAIN", "6"))
+    # domain=5: amazon.co.jp（日本）。keepa_client.py の finder と合わせる。
+    domain = int(os.getenv("KEEPA_DOMAIN", "5"))
 
     results: Dict[str, Dict[str, Any]] = {}
 
