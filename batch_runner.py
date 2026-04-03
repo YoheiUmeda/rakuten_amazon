@@ -292,6 +292,9 @@ def run_batch_once(
             reject_counter[reason] += 1
     for reason, count in reject_counter.most_common():
         log.info("[REJECT_SUMMARY] reason=%s count=%d", reason, count)
+    summary["velocity_excluded"] = sum(
+        v for k, v in reject_counter.items() if k.startswith("low_sales_velocity")
+    )
 
     # 4️⃣ 価格差計算
     log.info("[BATCH] 価格差計算中...")
