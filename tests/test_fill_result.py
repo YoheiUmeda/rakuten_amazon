@@ -272,6 +272,35 @@ class TestBuildResultMd:
         md = self._build(review_reply_path=tmp_path / "nonexistent.md")
         assert "GPT レビュー結果" not in md
 
+    def test_concerns_has_gpt_notice_when_reply_has_concerns(self, tmp_path):
+        """GPT懸念あり + cycle_state あり → 未確定点に案内1行が入る。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text("## 懸念（リスク）\nAPIキー漏洩リスク\n", encoding="utf-8")
+        state = {"ng_history": [], "loops": []}
+        md = self._build(cycle_state=state, review_reply_path=reply)
+        section = md.split("## 未確定点・懸念")[1].split("##")[0]
+        assert "GPTレビューで追加懸念あり" in section
+
+    def test_concerns_no_gpt_notice_when_no_reply_concerns(self, tmp_path):
+        """GPT懸念なし → 未確定点に案内は出ない。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text("## Decision\napprove\n", encoding="utf-8")
+        state = {"ng_history": [], "loops": []}
+        md = self._build(cycle_state=state, review_reply_path=reply)
+        section = md.split("## 未確定点・懸念")[1].split("##")[0]
+        assert "GPTレビュー" not in section
+
+    def test_conclusion_includes_commit_and_files(self):
+        """cycle_state + changed_files → conclusion に commit と変更ファイルが入る。"""
+        state = {
+            "ng_history": [],
+            "loops": [{"summary": "foo 修正", "test_result": "pass", "commit": "abc1234"}],
+        }
+        md = self._build(conclusion="", cycle_state=state, changed_files=["foo.py"])
+        section = md.split("## 結論")[1].split("##")[0]
+        assert "abc1234" in section
+        assert "foo.py" in section
+
 
 # ── _extract_gpt_concerns ─────────────────────────────────────────────────
 
@@ -358,7 +387,7 @@ class TestBuildConclusionFromState:
 
     def test_no_test_result_returns_summary_only(self):
         state = {"loops": [{"summary": "foo を修正", "test_result": ""}]}
-        assert _build_conclusion_from_state(state) == "foo を修正"
+        assert _build_conclusion_from_state(state) == "foo を修正。"
 
     def test_empty_loops_returns_empty(self):
         assert _build_conclusion_from_state({"loops": []}) == ""
@@ -371,6 +400,22 @@ class TestBuildConclusionFromState:
         result = _build_conclusion_from_state(state)
         assert "second" in result
         assert "first" not in result
+
+    def test_includes_commit_when_present(self):
+        state = {"loops": [{"summary": "foo を修正", "test_result": "pass", "commit": "abc1234"}]}
+        result = _build_conclusion_from_state(state)
+        assert "abc1234" in result
+
+    def test_includes_changed_files_from_arg(self):
+        state = {"loops": [{"summary": "foo を修正", "test_result": "pass", "commit": ""}]}
+        result = _build_conclusion_from_state(state, changed_files=["foo.py", "bar.py"])
+        assert "foo.py" in result
+        assert "bar.py" in result
+
+    def test_no_commit_no_files_uses_summary_and_test(self):
+        state = {"loops": [{"summary": "foo を修正", "test_result": "pass", "commit": ""}]}
+        result = _build_conclusion_from_state(state)
+        assert result == "foo を修正。テスト: pass。"
 
 
 # ── _build_concerns_from_state ────────────────────────────────────────────
@@ -396,6 +441,25 @@ class TestBuildConcernsFromState:
         state = {"ng_history": [{"reason": ""}, {"reason": "有効な理由"}]}
         result = _build_concerns_from_state(state)
         assert result == "- 有効な理由"
+
+    def test_has_gpt_concerns_adds_notice(self):
+        """has_gpt_concerns=True のとき案内1行が追加される。"""
+        result = _build_concerns_from_state({"ng_history": []}, has_gpt_concerns=True)
+        assert "GPTレビューで追加懸念あり" in result
+        assert "## GPT レビュー結果" in result
+
+    def test_has_gpt_concerns_combined_with_ng_history(self):
+        """ng_history + GPT懸念の両方が出る。"""
+        state = {"ng_history": [{"reason": "テスト失敗"}]}
+        result = _build_concerns_from_state(state, has_gpt_concerns=True)
+        assert "- テスト失敗" in result
+        assert "GPTレビューで追加懸念あり" in result
+
+    def test_no_gpt_concerns_no_notice(self):
+        """has_gpt_concerns=False（デフォルト）では案内が出ない。"""
+        state = {"ng_history": [{"reason": "テスト失敗"}]}
+        result = _build_concerns_from_state(state)
+        assert "GPTレビュー" not in result
 
 
 # ── _read_open_questions ──────────────────────────────────────────────────

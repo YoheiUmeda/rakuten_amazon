@@ -141,19 +141,25 @@ def _read_open_questions(review_request_path: Path) -> list[str]:
         return []
 
 
-def _build_conclusion_from_state(state: dict) -> str:
-    """cycle_state の最後の loop summary と test_result から conclusion の叩き台を生成する。"""
+def _build_conclusion_from_state(state: dict, changed_files: list[str] | None = None) -> str:
+    """cycle_state の最後の loop summary / test_result / commit と changed_files から conclusion の叩き台を生成する。"""
     loops = state.get("loops", [])
     if not loops:
         return ""
     last = loops[-1]
     summary = last.get("summary", "").strip()
     test_result = last.get("test_result", "")
+    commit = last.get("commit", "")
     if not summary:
         return ""
+    parts = [summary]
     if test_result:
-        return f"{summary}。テスト: {test_result}。"
-    return summary
+        parts.append(f"テスト: {test_result}")
+    if commit:
+        parts.append(f"commit: {commit}")
+    if changed_files:
+        parts.append("変更: " + ", ".join(changed_files))
+    return "。".join(parts) + "。"
 
 
 def _extract_gpt_concerns(path: Path) -> str:
@@ -177,12 +183,17 @@ def _extract_log_summary(test_output: str) -> str:
     return "\n".join(lines) if lines else "なし"
 
 
-def _build_concerns_from_state(state: dict) -> str:
-    """ng_history から未確定点・懸念の叩き台を生成する。空なら「なし」。"""
+def _build_concerns_from_state(state: dict, has_gpt_concerns: bool = False) -> str:
+    """ng_history から未確定点・懸念の叩き台を生成する。
+    has_gpt_concerns=True のとき GPT 懸念への案内1行を末尾に追加する。空なら「なし」。
+    """
     ng_history = state.get("ng_history", [])
-    if not ng_history:
+    lines = [f"- {h['reason']}" for h in ng_history if h.get("reason")]
+    if has_gpt_concerns:
+        lines.append("- GPTレビューで追加懸念あり（詳細は「## GPT レビュー結果」を参照）")
+    if not lines:
         return "なし"
-    return "\n".join(f"- {h['reason']}" for h in ng_history if h.get("reason"))
+    return "\n".join(lines)
 
 
 def build_result_md(
@@ -204,7 +215,7 @@ def build_result_md(
     if conclusion:
         conclusion_text = conclusion
     elif cycle_state:
-        conclusion_text = _build_conclusion_from_state(cycle_state) or "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
+        conclusion_text = _build_conclusion_from_state(cycle_state, changed_files=changed_files) or "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
     else:
         conclusion_text = "<!-- TODO: 何をしたか・成功/失敗を1〜3行で -->"
 
@@ -230,9 +241,11 @@ def build_result_md(
         "\n## GPT レビュー結果\n" + "\n".join(gpt_block_lines)
     ) if gpt_block_lines else ""
 
-    # 未確定点・懸念: cycle_state があれば ng_history から生成
+    # 未確定点・懸念: cycle_state があれば ng_history から生成。GPT懸念は案内1行のみ追加。
     if cycle_state is not None:
-        concerns_text = _build_concerns_from_state(cycle_state)
+        concerns_text = _build_concerns_from_state(cycle_state, has_gpt_concerns=bool(_gpt_concerns))
+    elif _gpt_concerns:
+        concerns_text = "- GPTレビューで追加懸念あり（詳細は「## GPT レビュー結果」を参照）"
     else:
         concerns_text = "<!-- TODO: Claude が判断できなかった点、次に確認してほしいこと。なければ「なし」 -->"
 
