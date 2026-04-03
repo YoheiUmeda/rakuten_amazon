@@ -9,6 +9,7 @@ def prefilter_for_rakuten(
     asin_map: Dict[str, Dict[str, Any]],
     min_max_possible_profit: int = 1500,
     min_price: int = 3000,
+    min_sales_rank_drops30: int = 0,
 ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
     """
     楽天APIを叩く前に、
@@ -23,6 +24,8 @@ def prefilter_for_rakuten(
     条件:
       - sale_price < min_price         → 除外
       - max_possible_profit < min_max_possible_profit → 除外
+      - min_sales_rank_drops30 > 0 かつ sales_rank_drops30 < min_sales_rank_drops30 → 除外
+        （sales_rank_drops30 が None/欠損の場合は fail-open で通す）
     """
 
     filtered: Dict[str, Dict[str, Any]] = {}
@@ -72,6 +75,13 @@ def prefilter_for_rakuten(
         if max_possible_profit < min_max_possible_profit:
             excluded[asin] = f"low_max_profit({max_possible_profit:.0f})"
             continue
+
+        # 販売速度フィルタ（min_sales_rank_drops30 > 0 のときのみ有効）
+        if min_sales_rank_drops30 > 0:
+            drops = info.get("sales_rank_drops30")
+            if drops is not None and drops < min_sales_rank_drops30:
+                excluded[asin] = f"low_sales_velocity({drops})"
+                continue
 
         filtered[asin] = info
 

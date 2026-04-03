@@ -110,6 +110,7 @@ def get_keepa_summary(asins: List[str]) -> Dict[str, Dict[str, Any]]:
             results[asin] = {
                 "amz_price": price,
                 "is_fba": bool(fba),
+                "sales_rank_drops30": p.get("salesRankDrops30"),
             }
 
     logger.info("[Keepa] 価格サマリ取得完了: %d件", len(results))

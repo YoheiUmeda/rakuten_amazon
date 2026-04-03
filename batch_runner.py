@@ -46,6 +46,9 @@ PREFILTER_MIN_MAX_POSSIBLE_PROFIT = int(
 PREFILTER_MIN_PRICE = int(
     os.getenv("PREFILTER_MIN_PRICE", "0")  # デバッグ用にデフォルト0
 )
+PREFILTER_MIN_SALES_RANK_DROPS30 = int(
+    os.getenv("PREFILTER_MIN_SALES_RANK_DROPS30", "0")  # 0=無効（既存動作維持）
+)
 
 
 def load_query_from_env_or_file() -> str:
@@ -240,14 +243,16 @@ def run_batch_once(
 
     # 3️⃣ 楽天検索用プレフィルタ
     log.info(
-        "[BATCH] 楽天検索候補の事前絞り込み中... (min_max_possible_profit=%d, min_price=%d)",
+        "[BATCH] 楽天検索候補の事前絞り込み中... (min_max_possible_profit=%d, min_price=%d, min_drops30=%d)",
         PREFILTER_MIN_MAX_POSSIBLE_PROFIT,
         PREFILTER_MIN_PRICE,
+        PREFILTER_MIN_SALES_RANK_DROPS30,
     )
     filtered_for_rakuten, prefilter_excluded = prefilter_for_rakuten(
         amazon_offer_data_with_fee,
         min_max_possible_profit=PREFILTER_MIN_MAX_POSSIBLE_PROFIT,
         min_price=PREFILTER_MIN_PRICE,
+        min_sales_rank_drops30=PREFILTER_MIN_SALES_RANK_DROPS30,
     )
     for asin, reason in prefilter_excluded.items():
         log.info("[REJECT] ASIN=%s reason=%s", asin, reason)
