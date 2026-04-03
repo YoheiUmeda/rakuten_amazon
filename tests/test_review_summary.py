@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from tools.ai_orchestrator.review_reply_parser import read_decision as _read_review_decision
 from tools.ai_orchestrator.review_summary import (
-    _read_review_decision,
     build_next_instruction_draft,
     build_summary,
 )

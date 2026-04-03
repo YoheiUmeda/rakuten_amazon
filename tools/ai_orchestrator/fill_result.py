@@ -31,10 +31,14 @@ from tools.ai_orchestrator.generate_review_request import (
     get_git_diff,
     run_test_command,
 )
-from tools.ai_orchestrator.review_summary import _read_review_decision
+from tools.ai_orchestrator.review_reply_parser import (
+    REVIEW_REPLY_PATH as _REVIEW_REPLY_PATH_DEFAULT,
+    read_decision as _read_review_decision,
+    read_concerns as _extract_gpt_concerns,
+)
 
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
-REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "handoff" / "review_reply.md"
+REVIEW_REPLY_PATH = _REVIEW_REPLY_PATH_DEFAULT
 TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
 CYCLE_STATE_PATH = REPO_ROOT / ".ai" / "state" / "cycle_state.json"
 REVIEW_REQUEST_PATH = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
@@ -160,18 +164,6 @@ def _build_conclusion_from_state(state: dict, changed_files: list[str] | None = 
     if changed_files:
         parts.append("変更: " + ", ".join(changed_files))
     return "。".join(parts) + "。"
-
-
-def _extract_gpt_concerns(path: Path) -> str:
-    """review_reply.md の ## 懸念 セクション本文を返す。取得不能は ''（fail-open）。"""
-    if not path.exists():
-        return ""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except Exception:
-        return ""
-    m = re.search(r'^##\s+懸念[^\n]*\n(.*?)(?=^##|\Z)', text, re.MULTILINE | re.DOTALL)
-    return m.group(1).strip() if m else ""
 
 
 def _extract_log_summary(test_output: str) -> str:

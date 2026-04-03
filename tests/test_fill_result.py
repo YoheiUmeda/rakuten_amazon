@@ -16,13 +16,13 @@ import pytest
 from tools.ai_orchestrator.fill_result import (
     _build_conclusion_from_state,
     _build_concerns_from_state,
-    _extract_gpt_concerns,
     _extract_log_summary,
     _read_open_questions,
     _read_task_id,
     _read_task_purpose,
     build_result_md,
 )
+from tools.ai_orchestrator.review_reply_parser import read_concerns as _extract_gpt_concerns
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = REPO_ROOT / "venv" / "Scripts" / "python.exe"

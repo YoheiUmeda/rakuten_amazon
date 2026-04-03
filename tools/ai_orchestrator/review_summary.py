@@ -14,40 +14,19 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.ai_orchestrator.cycle_manager import load_state, SOFT_LIMIT
+from tools.ai_orchestrator.review_reply_parser import (
+    REVIEW_REPLY_PATH,
+    read_decision as _read_review_decision,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
-REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "handoff" / "review_reply.md"
 NEXT_INSTRUCTION_PATH = REPO_ROOT / "docs" / "handoff" / "next_instruction_draft.md"
 
 
 def _now_jst() -> str:
     jst = timezone(timedelta(hours=9))
     return datetime.now(jst).strftime("%Y-%m-%dT%H:%M:%S+09:00")
-
-
-def _read_review_decision(review_reply_path: Path) -> str:
-    """review_reply.md の判定行から 'approve' / 'request_changes' を返す。
-
-    判定対象: # 見出し行を除く行のうち、stripped が 'approve' または
-    'request changes' / 'request_changes' で始まる最初の行。
-    判定不能・ファイル不在は '' を返す（fail-open）。
-    """
-    if not review_reply_path.exists():
-        return ""
-    try:
-        text = review_reply_path.read_text(encoding="utf-8")
-    except Exception:
-        return ""
-    for line in text.splitlines():
-        stripped = line.strip().lower()
-        if stripped.startswith("#"):
-            continue
-        if stripped.startswith("request changes") or stripped.startswith("request_changes"):
-            return "request_changes"
-        if stripped.startswith("approve"):
-            return "approve"
-    return ""
 
 
 def build_next_instruction_draft(
