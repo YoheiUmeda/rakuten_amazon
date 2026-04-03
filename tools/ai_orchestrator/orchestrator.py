@@ -81,6 +81,17 @@ def build_user_content(data: dict) -> str:
     if questions:
         lines.append("## 未解決の疑問点\n" + "\n".join(f"- {q}" for q in questions) + "\n")
 
+    review_mode = data.get("review_mode", "production")
+    non_blockers = data.get("expected_non_blockers", [])
+    if review_mode == "verification" or non_blockers:
+        lines.append(f"## レビューモード\n{review_mode}\n")
+    if non_blockers:
+        lines.append(
+            "## 既知の非ブロッカー（事前確認済み）\n"
+            + "\n".join(f"- {nb}" for nb in non_blockers)
+            + "\n"
+        )
+
     constraints = data.get("constraints", [])
     if constraints:
         lines.append("## 守るべき制約\n" + "\n".join(f"- {c}" for c in constraints) + "\n")

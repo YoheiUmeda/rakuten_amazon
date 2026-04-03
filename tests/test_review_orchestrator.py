@@ -139,6 +139,26 @@ class TestBuildUserContent:
         })
         assert "pass_filter に触れない" in content
 
+    def test_verification_mode_included(self):
+        content = build_user_content({
+            "task": "t", "changed_files": [],
+            "review_mode": "verification"
+        })
+        assert "verification" in content
+
+    def test_expected_non_blockers_included(self):
+        content = build_user_content({
+            "task": "t", "changed_files": [],
+            "review_mode": "verification",
+            "expected_non_blockers": ["foo: bar", "baz: qux"]
+        })
+        assert "foo: bar" in content
+        assert "baz: qux" in content
+
+    def test_production_mode_omitted_when_no_non_blockers(self):
+        content = build_user_content({"task": "t", "changed_files": []})
+        assert "レビューモード" not in content
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # CLI dry-run（subprocess）
