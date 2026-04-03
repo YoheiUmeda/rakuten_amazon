@@ -31,8 +31,10 @@ from tools.ai_orchestrator.generate_review_request import (
     get_git_diff,
     run_test_command,
 )
+from tools.ai_orchestrator.review_summary import _read_review_decision
 
 RESULT_MD = REPO_ROOT / "docs" / "handoff" / "result.md"
+REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "handoff" / "review_reply.md"
 TASK_MD = REPO_ROOT / "docs" / "handoff" / "task.md"
 CYCLE_STATE_PATH = REPO_ROOT / ".ai" / "state" / "cycle_state.json"
 REVIEW_REQUEST_PATH = REPO_ROOT / ".ai" / "handoff" / "review_request.json"
@@ -154,6 +156,18 @@ def _build_conclusion_from_state(state: dict) -> str:
     return summary
 
 
+def _extract_gpt_concerns(path: Path) -> str:
+    """review_reply.md の ## 懸念 セクション本文を返す。取得不能は ''（fail-open）。"""
+    if not path.exists():
+        return ""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+    m = re.search(r'^##\s+懸念[^\n]*\n(.*?)(?=^##|\Z)', text, re.MULTILINE | re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
 def _extract_log_summary(test_output: str) -> str:
     """WARNING / ERROR / FAILED / failed / Traceback を含む行を抽出する。なければ「なし」（fail-open）。"""
     if not test_output:
@@ -181,6 +195,7 @@ def build_result_md(
     purpose: str = "",
     review_focus: list[str] | None = None,
     cycle_state: dict | None = None,
+    review_reply_path: Path | None = None,
 ) -> str:
     """result.md の全文を返す。cycle_state を渡すと conclusion / 懸念点を自動補完する。"""
     files_block = "\n".join(f"- {f}" for f in changed_files) if changed_files else "-"
@@ -201,6 +216,19 @@ def build_result_md(
         focus_block = "<!-- TODO: ChatGPT に特に見てほしい点。なければ「なし」 -->"
 
     log_summary = _extract_log_summary(test_output)
+
+    # GPT レビュー結果（review_reply.md から抽出、fail-open）
+    _rr = review_reply_path or REVIEW_REPLY_PATH
+    _decision = _read_review_decision(_rr)
+    _gpt_concerns = _extract_gpt_concerns(_rr)
+    gpt_block_lines = []
+    if _decision:
+        gpt_block_lines.append(f"- Decision: {_decision}")
+    if _gpt_concerns:
+        gpt_block_lines.append(f"\n### GPT 懸念点\n{_gpt_concerns}")
+    gpt_review_block = (
+        "\n## GPT レビュー結果\n" + "\n".join(gpt_block_lines)
+    ) if gpt_block_lines else ""
 
     # 未確定点・懸念: cycle_state があれば ng_history から生成
     if cycle_state is not None:
@@ -261,6 +289,7 @@ secrets_checked: false
 
 ## secrets 確認
 - .env / APIキー / トークン: 未含有（確認済み）
+{gpt_review_block}
 """
 
 

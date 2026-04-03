@@ -16,6 +16,7 @@ import pytest
 from tools.ai_orchestrator.fill_result import (
     _build_conclusion_from_state,
     _build_concerns_from_state,
+    _extract_gpt_concerns,
     _extract_log_summary,
     _read_open_questions,
     _read_task_id,
@@ -246,6 +247,48 @@ class TestBuildResultMd:
         state = {"ng_history": [], "loops": []}
         md = self._build(conclusion="", cycle_state=state)
         assert "TODO" in md.split("## 結論")[1].split("##")[0]
+
+    def test_gpt_review_block_approve(self, tmp_path):
+        """review_reply.md に approve があれば GPT レビュー結果ブロックが出る。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text("## Decision\napprove\n", encoding="utf-8")
+        md = self._build(review_reply_path=reply)
+        assert "## GPT レビュー結果" in md
+        assert "Decision: approve" in md
+
+    def test_gpt_review_block_with_concerns(self, tmp_path):
+        """懸念点セクションがあれば ### GPT 懸念点 として出る。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text(
+            "## Decision\napprove\n## 懸念（リスク）\nAPIキー漏洩リスクあり\n## 次\nなし\n",
+            encoding="utf-8",
+        )
+        md = self._build(review_reply_path=reply)
+        assert "### GPT 懸念点" in md
+        assert "APIキー漏洩リスクあり" in md
+
+    def test_gpt_review_block_absent_when_no_reply(self, tmp_path):
+        """review_reply.md が存在しなければ GPT レビュー結果ブロック自体が出ない。"""
+        md = self._build(review_reply_path=tmp_path / "nonexistent.md")
+        assert "GPT レビュー結果" not in md
+
+
+# ── _extract_gpt_concerns ─────────────────────────────────────────────────
+
+class TestExtractGptConcerns:
+
+    def test_concerns_section_extracted(self, tmp_path):
+        f = tmp_path / "r.md"
+        f.write_text("## 懸念（リスク）\nfoo bar\n## 次\nなし\n", encoding="utf-8")
+        assert _extract_gpt_concerns(f) == "foo bar"
+
+    def test_no_concerns_section_returns_empty(self, tmp_path):
+        f = tmp_path / "r.md"
+        f.write_text("## Decision\napprove\n", encoding="utf-8")
+        assert _extract_gpt_concerns(f) == ""
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        assert _extract_gpt_concerns(tmp_path / "nonexistent.md") == ""
 
 
 # ── _extract_log_summary ─────────────────────────────────────────────────
