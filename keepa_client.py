@@ -38,6 +38,14 @@ def get_asins_from_finder(query_jsonstr: str) -> list[str]:
         logger.warning("[Keepa] selection が空または不正のため ASIN 取得をスキップ")
         return []
 
+    # ENV で指定された最小販売速度を selection に注入（未設定・0 の場合は無効）
+    try:
+        _min_drops = int(os.getenv("KEEPA_FINDER_MIN_DROPS30", "0") or "0")
+    except (ValueError, TypeError):
+        _min_drops = 0
+    if _min_drops > 0 and "salesRankDrops30Min" not in selection:
+        selection["salesRankDrops30Min"] = _min_drops
+
     logger.info("[Keepa] Product Finder クエリ開始")
     logger.debug("[Keepa] selection=%s", selection)
 
