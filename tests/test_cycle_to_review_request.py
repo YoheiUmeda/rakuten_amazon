@@ -219,7 +219,6 @@ def test_review_mode_verification_by_keyword(no_git_diff):
     state = _pending_state(goal="review_request metadata for false positive reduction")
     data = ctr.build_review_request(state)
     assert data["review_mode"] == "verification"
-    assert "expected_non_blockers" in data
     assert "automation_path" in data
 
 
@@ -237,6 +236,31 @@ def test_review_mode_production(no_git_diff):
     assert data["review_mode"] == "production"
     assert "expected_non_blockers" not in data
     assert "automation_path" not in data
+
+
+def test_expected_non_blockers_apply_review_file(no_git_diff):
+    """apply_review.py が changed_files にある場合、apply 関連の非ブロッカーが追加される。"""
+    state = _pending_state(goal="add flag", changed_files=["tools/ai_orchestrator/apply_review.py"])
+    data = ctr.build_review_request(state)
+    nb = data.get("expected_non_blockers", [])
+    assert "result_status_missing_ok" in nb
+    assert "task_archive_skip_ok" in nb
+
+
+def test_expected_non_blockers_standalone_arg_file(no_git_diff):
+    """review_summary.py が changed_files にある場合、standalone_optional_arg_path が追加される。"""
+    state = _pending_state(goal="update output", changed_files=["tools/ai_orchestrator/review_summary.py"])
+    data = ctr.build_review_request(state)
+    assert "standalone_optional_arg_path" in data.get("expected_non_blockers", [])
+
+
+def test_expected_non_blockers_absent_when_not_matched(no_git_diff):
+    """cycle_to_review_request.py のみの変更では expected_non_blockers は省略される。"""
+    state = _pending_state(goal="refactor metadata generation",
+                           changed_files=["tools/ai_orchestrator/cycle_to_review_request.py"])
+    data = ctr.build_review_request(state)
+    assert data["review_mode"] == "verification"
+    assert "expected_non_blockers" not in data
 
 
 # ── _git_diff ────────────────────────────────────────────────────────────

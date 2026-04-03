@@ -49,6 +49,30 @@ def _detect_review_mode(goal: str, changed_files: list[str]) -> str:
     ):
         return "verification"
     return "production"
+
+
+_APPLY_REVIEW_KEYWORDS = frozenset({"apply", "approve", "archive", "reject", "result.md"})
+_APPLY_REVIEW_FILES = ("apply_review.py",)
+_STANDALONE_ARG_KEYWORDS = frozenset({"standalone", "optional", "clarif", "intent"})
+_STANDALONE_ARG_FILES = ("review_summary.py", "run_cycle_review.py")
+
+
+def _build_expected_non_blockers(goal: str, changed_files: list[str]) -> list[str]:
+    """changed_files と goal から必要最小限の expected_non_blockers を生成する（fail-open: 空なら省略）。"""
+    goal_lower = goal.lower()
+    files_norm = [f.replace("\\", "/") for f in changed_files]
+    items: list[str] = []
+
+    if (any(any(f.endswith(af) for af in _APPLY_REVIEW_FILES) for f in files_norm)
+            or any(kw in goal_lower for kw in _APPLY_REVIEW_KEYWORDS)):
+        items.append("result_status_missing_ok")
+        items.append("task_archive_skip_ok")
+
+    if (any(any(f.endswith(sf) for sf in _STANDALONE_ARG_FILES) for f in files_norm)
+            or any(kw in goal_lower for kw in _STANDALONE_ARG_KEYWORDS)):
+        items.append("standalone_optional_arg_path")
+
+    return items
 TASK_MD_PATH = REPO_ROOT / "docs" / "handoff" / "task.md"
 REVIEW_SUMMARY_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
 
@@ -152,11 +176,9 @@ def build_review_request(
         "review_mode": review_mode,
     }
     if review_mode == "verification":
-        result["expected_non_blockers"] = [
-            "result_status_missing_ok",
-            "task_archive_skip_ok",
-            "standalone_optional_arg_path",
-        ]
+        non_blockers = _build_expected_non_blockers(task, changed_files)
+        if non_blockers:
+            result["expected_non_blockers"] = non_blockers
         result["automation_path"] = ["auto_review", "auto_approve", "auto_archive", "auto_reject"]
     if test_cmd:
         result["test_command"] = test_cmd
