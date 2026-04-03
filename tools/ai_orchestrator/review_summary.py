@@ -17,7 +17,7 @@ from tools.ai_orchestrator.cycle_manager import load_state, SOFT_LIMIT
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_PATH = REPO_ROOT / "docs" / "handoff" / "review_summary.md"
-REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "review_reply.md"
+REVIEW_REPLY_PATH = REPO_ROOT / "docs" / "handoff" / "review_reply.md"
 NEXT_INSTRUCTION_PATH = REPO_ROOT / "docs" / "handoff" / "next_instruction_draft.md"
 
 
@@ -132,7 +132,7 @@ def build_next_instruction_draft(
 """
 
 
-def build_summary(state: dict, test_log_path: str = "") -> str:
+def build_summary(state: dict, test_log_path: str = "", review_reply_path: Path | None = None) -> str:
     goal = state.get("goal", "(未設定)")
     status = state.get("status", "unknown")
     loop_count = state.get("loop_count", 0)
@@ -153,6 +153,10 @@ def build_summary(state: dict, test_log_path: str = "") -> str:
             if f not in seen:
                 all_files.append(f)
                 seen.add(f)
+
+    # GPT Decision
+    decision = _read_review_decision(review_reply_path or REVIEW_REPLY_PATH)
+    decision_line = f"`{decision}`" if decision else "(未取得)"
 
     # NG 履歴
     ng_history = state.get("ng_history", [])
@@ -234,6 +238,9 @@ def build_summary(state: dict, test_log_path: str = "") -> str:
 
 ## 次の判断
 {next_action}
+
+## GPT Decision
+{decision_line}
 """
 
 

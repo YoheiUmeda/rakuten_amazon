@@ -191,3 +191,24 @@ class TestBuildSummary:
         state = self._base_state()
         content = build_summary(state)
         assert "テストログ" not in content
+
+    def test_decision_approve_shown(self, tmp_path):
+        """review_reply.md に approve があれば GPT Decision セクションに表示される。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text("## Decision\napprove\n", encoding="utf-8")
+        content = build_summary(self._base_state(), review_reply_path=reply)
+        assert "GPT Decision" in content
+        assert "`approve`" in content
+
+    def test_decision_request_changes_shown(self, tmp_path):
+        """request_changes が review_summary.md に反映される。"""
+        reply = tmp_path / "review_reply.md"
+        reply.write_text("## Decision\nrequest_changes\n", encoding="utf-8")
+        content = build_summary(self._base_state(), review_reply_path=reply)
+        assert "`request_changes`" in content
+
+    def test_decision_missing_file_shows_not_retrieved(self, tmp_path):
+        """review_reply.md が存在しない場合は（未取得）と表示される。"""
+        content = build_summary(self._base_state(), review_reply_path=tmp_path / "nonexistent.md")
+        assert "GPT Decision" in content
+        assert "(未取得)" in content
