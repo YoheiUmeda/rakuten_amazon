@@ -94,6 +94,7 @@ For run-only / review-only / execution-only tasks (status check, start/stop/appr
 
 ```bash
 # 変更内容を確認してから進める（review_request.json を保存して止まる）
+# ※ review_request.json が既存の場合は exit 1。上書きする場合のみ --overwrite を追加する。
 venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --task "タスク説明" --staged --save-only
 

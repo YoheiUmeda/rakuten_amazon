@@ -25,7 +25,7 @@ def _args(**kwargs) -> argparse.Namespace:
     defaults = dict(
         task="テスト", staged=False, files=[], test_cmd="",
         run_tests=False, related_code=[], open_questions=[],
-        constraints=[], dry_run=False, save_only=False, model=None,
+        constraints=[], dry_run=False, save_only=False, overwrite=False, model=None,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -127,9 +127,11 @@ class TestFailOpen:
 
 class TestSaveOnly:
 
-    def test_save_only_calls_generate_not_orchestrator(self, monkeypatch):
+    def test_save_only_calls_generate_not_orchestrator(self, tmp_path, monkeypatch):
         """--save-only: generate は呼ばれ、orchestrator は呼ばれないこと。"""
         from tools.ai_orchestrator import run_review
+        # DEFAULT_INPUT が存在しない状態にして fail-fast を回避
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", tmp_path / "review_request.json")
         call_count: dict[str, int] = {"n": 0}
 
         def fake_run(*a, **kw):
@@ -140,18 +142,20 @@ class TestSaveOnly:
         run_review.run(_args(save_only=True))
         assert call_count["n"] == 1  # generate のみ
 
-    def test_save_only_exits_zero_via_cli(self):
-        """--save-only が exit 0 で終わること（CLI 経由）。"""
+    def test_save_only_exits_zero_via_cli(self, tmp_path):
+        """--save-only かつ既存ファイルなしのとき exit 0 で終わること（CLI 経由）。"""
         r = subprocess.run(
             [_py(), "-m", "tools.ai_orchestrator.run_review",
-             "--task", "テスト", "--staged", "--save-only"],
+             "--task", "テスト", "--staged", "--save-only",
+             "--overwrite"],  # CI 環境で DEFAULT_INPUT が残っていても通るよう --overwrite 付き
             capture_output=True, text=True, encoding="utf-8", cwd=REPO_ROOT,
         )
         assert r.returncode == 0, f"stderr: {r.stderr}"
 
-    def test_save_only_does_not_pass_dry_run_to_generate(self, monkeypatch):
+    def test_save_only_does_not_pass_dry_run_to_generate(self, tmp_path, monkeypatch):
         """--save-only は generate に --dry-run を渡さない（JSON を実際に保存させる）。"""
         from tools.ai_orchestrator import run_review
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", tmp_path / "review_request.json")
         captured: list[list] = []
 
         def fake_run(cmd, **kw):
@@ -163,6 +167,48 @@ class TestSaveOnly:
         assert captured, "generate が呼ばれていない"
         gen_cmd = captured[0]
         assert "--dry-run" not in gen_cmd
+
+    def test_save_only_fails_when_existing_file_no_overwrite(self, tmp_path, monkeypatch):
+        """--save-only かつ既存ファイルあり、--overwrite なし → exit 1（fail fast）。"""
+        from tools.ai_orchestrator import run_review
+        existing = tmp_path / "review_request.json"
+        existing.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", existing)
+
+        with pytest.raises(SystemExit) as exc:
+            run_review.run(_args(save_only=True, overwrite=False))
+        assert exc.value.code == 1
+
+    def test_save_only_with_overwrite_calls_generate(self, tmp_path, monkeypatch):
+        """--save-only + --overwrite かつ既存ファイルあり → generate が呼ばれる。"""
+        from tools.ai_orchestrator import run_review
+        existing = tmp_path / "review_request.json"
+        existing.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", existing)
+        call_count: dict[str, int] = {"n": 0}
+
+        def fake_run(*a, **kw):
+            call_count["n"] += 1
+            return subprocess.CompletedProcess([], returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True, overwrite=True))
+        assert call_count["n"] == 1
+
+    def test_save_only_no_existing_file_calls_generate(self, tmp_path, monkeypatch):
+        """--save-only かつ既存ファイルなし → --overwrite なしでも generate が呼ばれる。"""
+        from tools.ai_orchestrator import run_review
+        non_existing = tmp_path / "review_request.json"  # 存在しない
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", non_existing)
+        call_count: dict[str, int] = {"n": 0}
+
+        def fake_run(*a, **kw):
+            call_count["n"] += 1
+            return subprocess.CompletedProcess([], returncode=0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        run_review.run(_args(save_only=True, overwrite=False))
+        assert call_count["n"] == 1
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -282,6 +328,7 @@ class TestAppendHistory:
         import json as _json
         from tools.ai_orchestrator import run_review
         monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", tmp_path / "review_request.json")
 
         def fake_run(*a, **kw):
             return subprocess.CompletedProcess([], returncode=0)
@@ -355,6 +402,7 @@ class TestAppendHistory:
         import json as _json
         from tools.ai_orchestrator import run_review
         monkeypatch.setattr(run_review, "LOG_PATH", tmp_path / "runs.jsonl")
+        monkeypatch.setattr(run_review, "DEFAULT_INPUT", tmp_path / "review_request.json")
 
         def fake_run(*a, **kw):
             return subprocess.CompletedProcess([], returncode=0)

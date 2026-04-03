@@ -123,6 +123,16 @@ def run(args: argparse.Namespace) -> None:
         "success": False,
     }
 
+    # --save-only + 既存ファイルあり + --overwrite なし → fail fast
+    if getattr(args, "save_only", False) and DEFAULT_INPUT.exists() \
+            and not getattr(args, "overwrite", False):
+        print(
+            f"[run_review][ERROR] --save-only: {DEFAULT_INPUT} が既存です。"
+            " 上書きするには --overwrite を指定してください。",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     # ── Step 1: generate_review_request ──────────────────────────────────
     gen_cmd = [py, "-m", "tools.ai_orchestrator.generate_review_request",
                "--task", args.task,
@@ -226,6 +236,8 @@ def main() -> None:
                         help="generate のみ実行（orchestrator をスキップ）")
     parser.add_argument("--save-only",      action="store_true",
                         help="review_request.json を保存して終了（orchestrator をスキップ）")
+    parser.add_argument("--overwrite",      action="store_true",
+                        help="--save-only 時に既存 review_request.json を上書きする")
     parser.add_argument("--model",          default=None,
                         help="使用モデル（省略時: OPENAI_MODEL env → gpt-4o-mini）")
     parser.add_argument("--history-tail",   type=int, default=0, metavar="N",

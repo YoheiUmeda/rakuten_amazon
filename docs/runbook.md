@@ -103,6 +103,7 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --dry-run
 
 # save-only（JSON保存して止まる、orchestrator はスキップ）
+# ※ review_request.json が既存の場合は exit 1。上書きする場合のみ --overwrite を追加する。
 venv/Scripts/python -m tools.ai_orchestrator.run_review \
   --task "タスク説明" \
   --staged \
@@ -119,7 +120,7 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review \
 | オプション | 挙動 |
 |---|---|
 | `--dry-run` | JSON 保存なし、orchestrator スキップ |
-| `--save-only` | JSON 保存あり、orchestrator スキップ（中身確認用） |
+| `--save-only` | JSON 保存あり、orchestrator スキップ。既存ファイルがある場合は `--overwrite` も必要 |
 | なし | JSON 保存あり、orchestrator まで全実行 |
 
 失敗時は WARN を出して `exit 0`。`review_reply.md` なしで commit を続行してよい。
