@@ -41,7 +41,7 @@ def dirty_tree(monkeypatch):
 
 
 def _make_args(**kwargs):
-    defaults = dict(goal="", test_cmd="true", files=["f.py"], summary="ok", auto_review=False)
+    defaults = dict(goal="", test_cmd="true", files=["f.py"], summary="ok", auto_review=False, auto_apply=False)
     defaults.update(kwargs)
     return Namespace(**defaults)
 
@@ -285,6 +285,85 @@ def test_auto_review_passes_test_output(clean_tree, fixed_hash, monkeypatch, tmp
     assert "366 passed" in rcr_cmd[idx + 1]
 
 
+# ── --auto-apply ──────────────────────────────────────────────────────────
+
+def test_auto_apply_approve_calls_apply_review(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """--auto-apply + Decision=approve → apply_review --auto-approve を呼ぶ。"""
+    from tools.ai_orchestrator import review_reply_parser as rrp
+
+    cm.save_state({"status": "in_progress", "goal": "g", "loops": [], "ng_history": [], "loop_count": 0, "base_commit": "abc0001"})
+    reply = tmp_path / "review_reply.md"
+    reply.write_text("approve\n", encoding="utf-8")
+    monkeypatch.setattr(rrp, "REVIEW_REPLY_PATH", reply)
+
+    calls = []
+
+    def fake_run(cmd, shell=False, cwd=None, **kwargs):
+        if isinstance(cmd, list):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(lr.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True, auto_apply=True))
+    assert exc.value.code == 0
+    apply_calls = [c for c in calls if "apply_review" in " ".join(c)]
+    assert apply_calls, "apply_review が呼ばれていない"
+    assert "--auto-approve" in apply_calls[0]
+    assert "apply_review 完了" in capsys.readouterr().out
+
+
+def test_auto_apply_request_changes_skips_apply(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """--auto-apply + Decision=request_changes → apply_review を呼ばない。"""
+    from tools.ai_orchestrator import review_reply_parser as rrp
+
+    cm.save_state({"status": "in_progress", "goal": "g", "loops": [], "ng_history": [], "loop_count": 0, "base_commit": "abc0001"})
+    reply = tmp_path / "review_reply.md"
+    reply.write_text("request_changes\n", encoding="utf-8")
+    monkeypatch.setattr(rrp, "REVIEW_REPLY_PATH", reply)
+
+    calls = []
+
+    def fake_run(cmd, shell=False, cwd=None, **kwargs):
+        if isinstance(cmd, list):
+            calls.append(cmd)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(lr.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True, auto_apply=True))
+    assert exc.value.code == 0
+    apply_calls = [c for c in calls if "apply_review" in " ".join(c)]
+    assert not apply_calls, "apply_review が呼ばれてはいけない"
+    out = capsys.readouterr().out
+    assert "スキップ" in out
+
+
+def test_auto_apply_apply_fails_does_not_abort(clean_tree, fixed_hash, monkeypatch, tmp_path, capsys):
+    """apply_review が exit 1 でも loop_runner は exit 0 を返す（fail-open）。"""
+    from tools.ai_orchestrator import review_reply_parser as rrp
+
+    cm.save_state({"status": "in_progress", "goal": "g", "loops": [], "ng_history": [], "loop_count": 0, "base_commit": "abc0001"})
+    reply = tmp_path / "review_reply.md"
+    reply.write_text("approve\n", encoding="utf-8")
+    monkeypatch.setattr(rrp, "REVIEW_REPLY_PATH", reply)
+
+    def fake_run(cmd, shell=False, cwd=None, **kwargs):
+        if isinstance(cmd, list) and "apply_review" in " ".join(cmd):
+            return SimpleNamespace(returncode=1, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(lr.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit) as exc:
+        _run_main(lr, _make_args(auto_review=True, auto_apply=True))
+    assert exc.value.code == 0
+    assert "WARN" in capsys.readouterr().out
+
+
 # ── 無効 status ───────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("bad_status", ["pending_review", "done", "stopped"])
@@ -458,6 +537,24 @@ def _execute_loop_runner(lr_mod, args):
                 print("[ERROR] run_cycle_review 失敗")
                 raise SystemExit(1)
             print("[OK] run_cycle_review 完了")
+
+            if getattr(args, "auto_apply", False):
+                from tools.ai_orchestrator.review_reply_parser import (
+                    REVIEW_REPLY_PATH,
+                    read_decision,
+                )
+                decision = read_decision(REVIEW_REPLY_PATH)
+                if decision == "approve":
+                    print("[INFO] --auto-apply: Decision=approve → apply_review を実行します")
+                    apply_cmd = [py, "-m", "tools.ai_orchestrator.apply_review",
+                                 "--auto-approve"]
+                    ar = lr_mod.subprocess.run(apply_cmd, cwd=cm.REPO_ROOT)
+                    if ar.returncode != 0:
+                        print("[WARN] apply_review 失敗（loop_runner は続行）")
+                    else:
+                        print("[OK] apply_review 完了")
+                else:
+                    print(f"[INFO] --auto-apply: Decision={decision!r} のため apply をスキップします")
 
         raise SystemExit(0)
     else:

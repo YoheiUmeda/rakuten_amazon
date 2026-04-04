@@ -88,6 +88,8 @@ def main() -> None:
     parser.add_argument("--summary", required=True, help="このループの1行要約")
     parser.add_argument("--auto-review", action="store_true",
                         help="submit 成功後に run_cycle_review を自動実行する")
+    parser.add_argument("--auto-apply", action="store_true",
+                        help="--auto-review で approve になった場合に apply_review --auto-approve を実行する")
     args = parser.parse_args()
 
     # ── pre-flight: dirty check ───────────────────────────────────────────
@@ -168,6 +170,24 @@ def main() -> None:
                 print("[ERROR] run_cycle_review 失敗")
                 sys.exit(1)
             print("[OK] run_cycle_review 完了")
+
+            if args.auto_apply:
+                from tools.ai_orchestrator.review_reply_parser import (
+                    REVIEW_REPLY_PATH,
+                    read_decision,
+                )
+                decision = read_decision(REVIEW_REPLY_PATH)
+                if decision == "approve":
+                    print("[INFO] --auto-apply: Decision=approve → apply_review を実行します")
+                    apply_cmd = [py, "-m", "tools.ai_orchestrator.apply_review",
+                                 "--auto-approve"]
+                    ar = subprocess.run(apply_cmd, cwd=REPO_ROOT)
+                    if ar.returncode != 0:
+                        print("[WARN] apply_review 失敗（loop_runner は続行）")
+                    else:
+                        print("[OK] apply_review 完了")
+                else:
+                    print(f"[INFO] --auto-apply: Decision={decision!r} のため apply をスキップします")
 
         sys.exit(0)
     else:
