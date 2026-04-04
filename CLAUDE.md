@@ -191,6 +191,18 @@ git push は都度承認。
 - `git add` は原則1ファイルずつ実行し、複数ファイルを1コマンドにまとめない
 - settings 検証や件数確認に `python -c` や `&&` 連結を使わず、`permissions_audit` を使う
 - パイプ（`|`）・`tail` / `head` を Bash で使わない（Read / Grep ツールで代替する）
+- heredoc（`cat <<'EOF'`）を使わない
+- commit message は `-m "1行メッセージ"` で直接渡す（変数展開・heredoc 不可）
+
+### コミット実行パターン（正しい例）
+```bash
+# 通常ファイル（auto-allow 対象）
+venv/Scripts/python -m tools.ai_orchestrator.safe_commit -m "feat: add foo"
+
+# Important files（raw commit・都度承認）
+git commit -m "fix: correct fee logic"
+```
+禁止パターン: `cd C:/... && git commit ...` / `git commit -m "$(cat <<'EOF'...)"` は使わない
 
 ### settings 変更後の再測定ルール
 - settings.local.json を変更した後、同じセッション内で新しい allow 対象コマンドの承認測定をしない
