@@ -106,7 +106,7 @@ def run_batch_once_noarg() -> Dict[str, Any]:
             continue
 
         logger.info("[BATCH] Query ファイル: %s", p.name)
-        summary = run_batch_once(query_str, logger=logger)
+        summary = run_batch_once(query_str, logger=logger, query_name=p.name)
 
         if not isinstance(summary, dict):
             continue
@@ -140,6 +140,7 @@ def run_batch_once_noarg() -> Dict[str, Any]:
 def run_batch_once(
     query: str,
     logger: logging.Logger | None = None,
+    query_name: str | None = None,
 ) -> Dict[str, Any]:
     """
     GUI なしで 1 回分のバッチを実行する。
@@ -184,7 +185,7 @@ def run_batch_once(
         "duration_sec": None,
     }
 
-    log.info("[BATCH] ===== 開始 =====")
+    log.info("[BATCH] ===== 開始: %s =====", query_name or "(query)")
     log.info("[BATCH] Query (先頭200文字): %s...", query[:200])
 
     # 1️⃣ ASIN リスト取得（Keepa Product Finder）
@@ -372,7 +373,7 @@ def run_batch_once(
             summary["db_saved_asins"] = 0
 
     # Excel 出力（0件でも export_asin_dict_to_excel の仕様に従う）
-    excel_path = export_asin_dict_to_excel(target_result)
+    excel_path = export_asin_dict_to_excel(target_result, query_name=query_name)
     summary["excel_path"] = str(excel_path) if excel_path else None
 
     elapsed = time.time() - start_time

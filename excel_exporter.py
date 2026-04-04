@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import openpyxl
@@ -119,7 +120,8 @@ HEADER_MAP_JA: Dict[str, str] = {
 
 
 def export_asin_dict_to_excel(
-    asin_data: Dict[str, Dict[str, Any]]
+    asin_data: Dict[str, Dict[str, Any]],
+    query_name: str | None = None,
 ) -> Optional[str]:
     """
     ASINベースの辞書（ネスト形式）をExcelに出力する。
@@ -177,7 +179,8 @@ def export_asin_dict_to_excel(
 
     # --- ファイル名・保存先 ---
     now_str = datetime.now().strftime("%Y%m%d%H%M%S")
-    filename = f"{now_str}_output.xlsx"
+    stem = Path(query_name).stem if query_name else "output"
+    filename = f"{now_str}_{stem}.xlsx"
     output_dir = os.getenv("OUTPUT_DIR_PATH") or "output"
     os.makedirs(output_dir, exist_ok=True)
     full_path = os.path.join(output_dir, filename)

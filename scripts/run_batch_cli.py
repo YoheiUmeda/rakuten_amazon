@@ -135,7 +135,7 @@ if __name__ == "__main__":
         for path, query in query_files:
             logger.info(f"[CLI] === 実行開始: {path.name} ===")
             logger.info(f"[CLI] query preview: {query[:150]}...")
-            run_batch_once(query, logger=logger)
+            run_batch_once(query, logger=logger, query_name=path.name)
             logger.info(f"[CLI] === 実行終了: {path.name} ===")
 
     except RuntimeError as e:
