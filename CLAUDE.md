@@ -122,6 +122,28 @@ venv/Scripts/python -m tools.ai_orchestrator.run_review --history-tail 10
 - After task execution, fill docs/handoff/result.md (conclusion / diff / test output) before closing
 - result.md is gitignored; copy from docs/handoff/result.md.template if it does not exist
 
+## Out-of-cycle 作業の記録ルール
+
+cycle_manager を使わず直接 commit / push した作業は out-of-cycle として扱う。
+
+### いつ out-of-cycle にするか（リスク・追跡性ベース）
+- cycle review を経なくても追跡・差し戻しができると判断できる変更
+- Important files を含まない
+- 単独で意味が完結していて、他の変更との依存がない
+- 例: docs-only 変更、緊急復旧用の独立スクリプト追加
+- （Important files を含む場合・設計判断が必要な場合は原則 cycle 内で進める）
+
+### 記録方法
+- **archive が正本**: `docs/handoff/archive/YYYYMMDD_<slug>.md` を手動作成して push する
+- task.md: 原則使わない（out-of-cycle の実績を task.md に記録すると cycle 記録と混線する）
+- 既に push 済み変更に対する救済記録が必要な場合のみ、例外的に task.md を更新してよい
+- result.md: 原則使わない（gitignored かつ cycle 用途）
+
+### docs commit
+- archive 追加は docs-only コミットとして push する
+- secrets を含まないことを確認し、`secrets_checked: true` にしてからコミットする
+- コミットメッセージ例: `docs: archive <slug> out-of-cycle work`
+
 ## Review flow (正式手順)
 
 ### OPENAI_API_KEY 設定済みの場合（短縮フロー）
