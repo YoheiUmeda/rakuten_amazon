@@ -2,9 +2,11 @@
 
 ## バッチ手動実行
 
+以下のコマンドはリポジトリ直下（`C:/Python/project/rakuten_amazon`）で実行する。
+`cd` は不要（Claude Code セッションは常にリポジトリ直下が作業ディレクトリ）。
+
 ```bash
-cd C:/Python/project/rakuten_amazon
-python batch_runner.py
+venv/Scripts/python batch_runner.py
 ```
 
 または FastAPI 経由:

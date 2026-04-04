@@ -190,6 +190,7 @@ git push は都度承認。
 - `cycle_manager start` と `loop_runner` は別コマンドで実行する
 - `git add` は原則1ファイルずつ実行し、複数ファイルを1コマンドにまとめない
 - settings 検証や件数確認に `python -c` や `&&` 連結を使わず、`permissions_audit` を使う
+- パイプ（`|`）・`tail` / `head` を Bash で使わない（Read / Grep ツールで代替する）
 
 ### settings 変更後の再測定ルール
 - settings.local.json を変更した後、同じセッション内で新しい allow 対象コマンドの承認測定をしない
