@@ -18,6 +18,7 @@ from amazon_price import get_amazon_prices
 from rakuten_client import get_rakuten_info
 from price_calculation import calculate_price_difference
 from excel_exporter import export_asin_dict_to_excel
+from triage import classify_deal
 
 from app.schemas import PriceResult
 from app.repository import save_price_results
@@ -319,6 +320,11 @@ def run_batch_once(
     if target_result:
         sample_asin, sample_data = next(iter(target_result.items()))
         log.info("[BATCH DEBUG] SAMPLE asin=%s, data=%s", sample_asin, sample_data)
+
+    # 4.2️⃣ triage 分類
+    for asin, data in target_result.items():
+        triage = classify_deal(data, MIN_PROFIT_YEN, MIN_ROI_PERCENT)
+        data.update(triage)
 
     # 4.5️⃣ DB 保存用オブジェクト組み立て
     price_results: List[PriceResult] = []

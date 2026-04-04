@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 # 左側に寄せたい「優先列」
 PREFERRED_ORDER: List[str] = [
+    "deal_status",   # triage 分類
+    "block_reason",  # リジェクト理由
+    "next_action",   # 次アクション
     "pass_filter",  # フィルタ合格フラグ
     "ASIN",
     "brand",
@@ -50,6 +53,9 @@ PREFERRED_ORDER: List[str] = [
 
 # 日本語ヘッダマップ（Excelに出すラベルはここが正）
 HEADER_MAP_JA: Dict[str, str] = {
+    "deal_status": "判定ステータス",
+    "block_reason": "ブロック理由",
+    "next_action": "次アクション",
     "ASIN": "ASIN",
     "pass_filter": "フィルタ通過",
     "brand": "ブランド",
