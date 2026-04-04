@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from spapi_client import get_fba_fee
 
-load_dotenv(override=True)
+load_dotenv(override=False)
 
 logger = logging.getLogger(__name__)
 

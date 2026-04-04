@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from sp_api.api import Products, ProductFees, Catalog
 from sp_api.base import Marketplaces, SellingApiException
 
-load_dotenv(override=True)
+load_dotenv(override=False)
 logger = logging.getLogger(__name__)
 
 # ========== 共通クレデンシャル ==========

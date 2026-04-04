@@ -16,7 +16,7 @@ _KEEPA_TIMEOUT = (10, 30)  # (connect_timeout, read_timeout) 秒
 
 from utils.utils import extract_quantity_combined
 
-load_dotenv(override=True)
+load_dotenv(override=False)
 logger = logging.getLogger(__name__)
 
 

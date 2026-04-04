@@ -123,7 +123,8 @@ if __name__ == "__main__":
         ],
     )
 
-    load_dotenv(override=True)
+    # OS環境変数を優先する。.env はOSに設定がない項目のみ補完する。
+    load_dotenv(override=False)
     logger.info(f"[CLI] log file: {log_path}")
 
     # ① KEEPA_QUERY_DIR 指定があれば「フォルダモード」で複数実行

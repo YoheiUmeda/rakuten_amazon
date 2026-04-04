@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# .env 読み込み
-load_dotenv(override=True)
+# .env 読み込み（OS環境変数を優先するため override=False）
+load_dotenv(override=False)
 
 
 @lru_cache(maxsize=1)

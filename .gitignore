@@ -26,6 +26,8 @@ output/
 #Query
 data/queries/*
 !data/queries/pf_jp_no_amazon_rank15k_4k15k_v1.txt
+!data/queries/pf_jp_no_amazon_rank15k_4k15k_v2_seller10.txt
+data/queries_test/
 
 #html
 html/

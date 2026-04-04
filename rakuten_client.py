@@ -11,7 +11,7 @@ from typing import Dict
 _RAKUTEN_TIMEOUT = (10, 30)  # (connect_timeout, read_timeout) 秒
 
 # .envからAPIキー読込など
-load_dotenv(override=True)
+load_dotenv(override=False)
 logger = logging.getLogger(__name__)
 
 EXCLUDE_KEYWORDS = [
