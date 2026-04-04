@@ -46,6 +46,8 @@ docs/review_reply.md
 
 # AI orchestrator handoff (generated, may contain secrets)
 .ai/handoff/review_request.json
+# batch summary JSON (runtime artifact, regenerated each run)
+.ai/handoff/batch_summary_*.json
 
 # AI orchestrator run logs (local-only, do not commit)
 .ai/logs/
