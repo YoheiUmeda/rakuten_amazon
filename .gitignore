@@ -24,7 +24,8 @@ output/
 *.xlsx
 
 #Query
-data/queries/
+data/queries/*
+!data/queries/pf_jp_no_amazon_rank15k_4k15k_v1.txt
 
 #html
 html/
