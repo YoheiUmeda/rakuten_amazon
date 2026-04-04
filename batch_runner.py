@@ -108,6 +108,16 @@ def run_batch_once_noarg() -> Dict[str, Any]:
         logger.info("[BATCH] Query ファイル: %s", p.name)
         summary = run_batch_once(query_str, logger=logger, query_name=p.name)
 
+        if isinstance(summary, dict):
+            logger.info(
+                "[QUERY SUMMARY] %s | ASIN=%d pass=%d pass利益合計=¥%d excel=%s",
+                p.name,
+                summary.get("total_asins", 0),
+                summary.get("pass_filter_count", 0),
+                summary.get("pass_profit_total_sum", 0),
+                Path(summary.get("excel_path") or "").name or "なし",
+            )
+
         if not isinstance(summary, dict):
             continue
 
@@ -312,6 +322,8 @@ def run_batch_once(
 
     # 4.5️⃣ DB 保存用オブジェクト組み立て
     price_results: List[PriceResult] = []
+    pass_filter_count = 0
+    pass_profit_total_sum = 0.0
 
     for asin, data in target_result.items():
         title = data.get("title") or ""
@@ -334,6 +346,10 @@ def run_batch_once(
             and profit_total >= MIN_PROFIT_YEN
             and roi_percent >= MIN_ROI_PERCENT
         )
+
+        if pass_filter:
+            pass_filter_count += 1
+            pass_profit_total_sum += float(profit_total or 0)
 
         price_results.append(
             PriceResult(
@@ -371,6 +387,9 @@ def run_batch_once(
             # DB接続失敗・SQL異常など、実行時の異常（想定外）
             log.error("[BATCH] DB保存失敗（接続・SQL異常の可能性）: %s", e)
             summary["db_saved_asins"] = 0
+
+    summary["pass_filter_count"] = pass_filter_count
+    summary["pass_profit_total_sum"] = round(pass_profit_total_sum)
 
     # Excel 出力（0件でも export_asin_dict_to_excel の仕様に従う）
     excel_path = export_asin_dict_to_excel(target_result, query_name=query_name)

@@ -110,3 +110,56 @@ class TestRunBatchOnceQueryName:
             batch_runner.run_batch_once("dummy_query", query_name="pf_jp_v1.txt")
 
         assert any("pf_jp_v1.txt" in r.message for r in caplog.records)
+
+
+# ── pass_filter_count / pass_profit_total_sum ─────────────────────────────────
+
+class TestPassFilterSummary:
+
+    def _make_patch_with_results(self, monkeypatch, tmp_path, calc_result):
+        monkeypatch.setenv("OUTPUT_DIR_PATH", str(tmp_path))
+        monkeypatch.setattr("batch_runner.get_asins_from_finder", lambda q: list(calc_result.keys()))
+        monkeypatch.setattr("batch_runner.get_amazon_prices", lambda asins: {
+            a: {"price": 5000, "is_fba": True, "sales_rank_drops30": 10} for a in asins
+        })
+        monkeypatch.setattr("batch_runner.get_amazon_fees_estimate", lambda d: d)
+        monkeypatch.setattr("batch_runner.prefilter_for_rakuten", lambda d, **kw: (d, {}))
+        monkeypatch.setattr("batch_runner.get_rakuten_info", lambda d: d)
+        monkeypatch.setattr("batch_runner.calculate_price_difference", lambda d: calc_result)
+        monkeypatch.setattr("batch_runner.save_price_results", lambda r: None)
+        monkeypatch.setattr("batch_runner.export_asin_dict_to_excel", lambda d, **kw: None)
+
+    def test_pass_filter_count_and_profit_sum(self, monkeypatch, tmp_path):
+        """pass_filter を通過した件数・利益合計が summary に入る。"""
+        calc_result = {
+            "B00PASS0001": {"profit_total": 1000, "roi_percent": 20.0},  # pass
+            "B00PASS0002": {"profit_total": 2000, "roi_percent": 25.0},  # pass
+            "B00FAIL0001": {"profit_total": 100,  "roi_percent": 5.0},   # fail（利益・ROI低）
+        }
+        self._make_patch_with_results(monkeypatch, tmp_path, calc_result)
+        import batch_runner
+        # MIN_PROFIT_YEN=700, MIN_ROI_PERCENT=15 がデフォルト
+        summary = batch_runner.run_batch_once("dummy")
+        assert summary["pass_filter_count"] == 2
+        assert summary["pass_profit_total_sum"] == 3000
+
+    def test_no_pass_filter_zero(self, monkeypatch, tmp_path):
+        """全件 fail のとき pass_filter_count=0、pass_profit_total_sum=0。"""
+        calc_result = {
+            "B00FAIL0001": {"profit_total": 100, "roi_percent": 5.0},
+        }
+        self._make_patch_with_results(monkeypatch, tmp_path, calc_result)
+        import batch_runner
+        summary = batch_runner.run_batch_once("dummy")
+        assert summary["pass_filter_count"] == 0
+        assert summary["pass_profit_total_sum"] == 0
+
+    def test_empty_target_result(self, monkeypatch, tmp_path):
+        """target_result が空のとき 0 になる。"""
+        self._make_patch_with_results(monkeypatch, tmp_path, {})
+        # calculate_price_difference が空 → get_asins_from_finder も空にする
+        monkeypatch.setattr("batch_runner.get_asins_from_finder", lambda q: [])
+        import batch_runner
+        summary = batch_runner.run_batch_once("dummy")
+        assert summary.get("pass_filter_count", 0) == 0
+        assert summary.get("pass_profit_total_sum", 0) == 0

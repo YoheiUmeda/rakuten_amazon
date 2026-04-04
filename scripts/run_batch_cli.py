@@ -132,11 +132,26 @@ if __name__ == "__main__":
             f"[CLI] クエリフォルダモード: {len(query_files)} ファイルを処理します。"
         )
 
+        per_query: list = []
         for path, query in query_files:
             logger.info(f"[CLI] === 実行開始: {path.name} ===")
             logger.info(f"[CLI] query preview: {query[:150]}...")
-            run_batch_once(query, logger=logger, query_name=path.name)
+            s = run_batch_once(query, logger=logger, query_name=path.name)
+            per_query.append((path.name, s or {}))
             logger.info(f"[CLI] === 実行終了: {path.name} ===")
+
+        logger.info("[CLI] ===== クエリ比較サマリ =====")
+        logger.info("%-52s %6s %6s %12s  %s", "query", "ASIN", "pass", "pass利益合計", "Excel")
+        for name, s in per_query:
+            excel = Path(s.get("excel_path") or "").name or "なし"
+            logger.info(
+                "%-52s %6d %6d %12.0f  %s",
+                name,
+                s.get("total_asins", 0),
+                s.get("pass_filter_count", 0),
+                s.get("pass_profit_total_sum", 0),
+                excel,
+            )
 
     except RuntimeError as e:
         # フォルダが見つからない / ファイルなし の場合だけフォールバックに進む
