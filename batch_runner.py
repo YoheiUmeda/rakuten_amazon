@@ -326,6 +326,13 @@ def run_batch_once(
         triage = classify_deal(data, MIN_PROFIT_YEN, MIN_ROI_PERCENT)
         data.update(triage)
 
+    deal_counts = Counter(
+        data.get("deal_status") or "unknown"
+        for data in target_result.values()
+    )
+    summary["deal_status_counts"] = dict(deal_counts)
+    summary["reject_reason_counts"] = dict(reject_counter)
+
     # 4.5️⃣ DB 保存用オブジェクト組み立て
     price_results: List[PriceResult] = []
     pass_filter_count = 0

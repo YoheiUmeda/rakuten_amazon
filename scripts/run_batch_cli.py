@@ -1,6 +1,7 @@
 # scripts/run_batch_cli.py
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -152,6 +153,42 @@ if __name__ == "__main__":
                 s.get("pass_profit_total_sum", 0),
                 excel,
             )
+
+        # .ai/handoff/ にサマリ JSON を保存
+        handoff_dir = base_dir / ".ai" / "handoff"
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+
+        def _rel(p: str) -> str:
+            try:
+                return str(Path(p).relative_to(base_dir))
+            except ValueError:
+                return str(p)
+
+        summary_data = {
+            "schema_version": 1,
+            "timestamp": ts,
+            "queries": [
+                {
+                    "query_name": name,
+                    "total_asins": s.get("total_asins", 0),
+                    "pass_filter_count": s.get("pass_filter_count", 0),
+                    "pass_profit_total_sum": s.get("pass_profit_total_sum", 0),
+                    "reject_reason_counts": s.get("reject_reason_counts", {}),
+                    "deal_status_counts": s.get("deal_status_counts", {}),
+                    "excel_path": _rel(s["excel_path"]) if s.get("excel_path") else None,
+                }
+                for name, s in per_query
+            ],
+        }
+        payload = json.dumps(summary_data, ensure_ascii=False, indent=2)
+        ts_path = handoff_dir / f"batch_summary_{ts}.json"
+        latest_path = handoff_dir / "batch_summary_latest.json"
+        try:
+            ts_path.write_text(payload, encoding="utf-8")
+            latest_path.write_text(payload, encoding="utf-8")
+            logger.info("[CLI] サマリJSON保存: %s", ts_path)
+        except OSError as e:
+            logger.warning("[CLI] サマリJSON保存失敗（主処理は継続）: %s", e)
 
     except RuntimeError as e:
         # フォルダが見つからない / ファイルなし の場合だけフォールバックに進む
