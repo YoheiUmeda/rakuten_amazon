@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 from prefilter import prefilter_for_rakuten
-from keepa_client import get_asins_from_finder
+from keepa_client import get_asins_from_finder, enrich_results_with_keepa_jan
 from amazon_fee import get_amazon_fees_estimate
 from amazon_price import get_amazon_prices
 from rakuten_client import get_rakuten_info
@@ -252,6 +252,11 @@ def run_batch_once(
         len(amazon_offer_data_with_fee),
         elapsed,
     )
+
+    # 2.7️⃣ Keepa JAN・タイトル・ブランド取得（楽天検索品質向上のため）
+    # enrich_results_with_keepa_jan が未接続だと title/JAN が空のまま楽天検索が ASIN ベースになるため
+    log.info("[BATCH] Keepa JAN/タイトル情報取得中...")
+    amazon_offer_data_with_fee = enrich_results_with_keepa_jan(amazon_offer_data_with_fee)
 
     # 3️⃣ 楽天検索用プレフィルタ
     log.info(
