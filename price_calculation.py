@@ -4,12 +4,19 @@ from typing import Any, Dict, Tuple
 from utils.utils import extract_quantity
 
 
+_MIN_RAKUTEN_PRICE_RATIO = 0.3  # Amazon単価に対する楽天1個あたり原価の下限比率（JAN誤登録対策）
+
+
 def _choose_best_rakuten_offer(
     info: Dict[str, Any],
     amazon_quantity: int,
+    amazon_price_per_item: float | None = None,
 ) -> Tuple[float | None, float | None, int | None]:
     """
     楽天候補のうち「1個あたりの実質仕入れ値」が一番安いものを 1 件だけ返す。
+
+    amazon_price_per_item が指定された場合、per_item / amazon_price_per_item が
+    _MIN_RAKUTEN_PRICE_RATIO 未満の候補を除外する（JAN誤登録による異常安値対策）。
 
     戻り値:
         (effective_cost_total, cost_per_item, quantity)
@@ -40,6 +47,13 @@ def _choose_best_rakuten_offer(
         # 実質仕入れ額（ポイント控除後）
         effective_total = float(cost) - float(point)
         per_item = effective_total / qty
+
+        # Amazon単価比が異常に低い候補を除外（JAN誤登録・無関係商品の混入対策）
+        # ポイント控除後ではなく定価ベースで判定（ポイント全額還元などの合法ケースを除外しない）
+        raw_per_item = float(cost) / qty
+        if amazon_price_per_item and amazon_price_per_item > 0:
+            if raw_per_item / amazon_price_per_item < _MIN_RAKUTEN_PRICE_RATIO:
+                continue
 
         # 1個あたり原価が最安のものを採用
         if best_per_item is None or per_item < best_per_item:
@@ -87,7 +101,7 @@ def calculate_price_difference(
         # -------- 楽天 側 --------
         # fee不要なので先に実行（rakuten_effective_cost_total 保持のため）
         rak_total, rak_per_item, rak_qty = _choose_best_rakuten_offer(
-            info, amazon_quantity
+            info, amazon_quantity, amazon_price_per_item
         )
 
         # FBA手数料が未取得の場合: fee依存フィールドのみ None、fee非依存フィールドは保持

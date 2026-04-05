@@ -76,6 +76,37 @@ class TestChooseBestRakutenOffer:
         assert qty == 2
         assert per_item == pytest.approx(4000.0 / 2)
 
+    def test_anomalous_low_price_skipped_when_amazon_price_given(self):
+        """Amazon単価比30%未満の楽天候補がスキップされ、次点が採用されること（JAN誤登録対策）"""
+        info = {
+            # 候補1: 780円 / 1個 = Amazon(8380円)の9% → スキップ
+            "rakuten_cost_1": 780,
+            "rakuten_point_1": 0,
+            "rakuten_quantity_1": 1,
+            # 候補2: 7180円 / 1個 = Amazon(8380円)の86% → 採用
+            "rakuten_cost_2": 7180,
+            "rakuten_point_2": 71,
+            "rakuten_quantity_2": 1,
+        }
+        total, per_item, qty = _choose_best_rakuten_offer(
+            info, amazon_quantity=1, amazon_price_per_item=8380.0
+        )
+        assert total == pytest.approx(7109.0)  # 7180 - 71
+        assert per_item == pytest.approx(7109.0)
+        assert qty == 1
+
+    def test_no_amazon_price_disables_ratio_filter(self):
+        """amazon_price_per_item が None のとき ratio フィルタを適用しないこと"""
+        info = {
+            "rakuten_cost_1": 780,
+            "rakuten_point_1": 0,
+            "rakuten_quantity_1": 1,
+        }
+        total, per_item, qty = _choose_best_rakuten_offer(
+            info, amazon_quantity=1, amazon_price_per_item=None
+        )
+        assert total == pytest.approx(780.0)  # フィルタなしで通過
+
 
 # ─────────────────────────────────────────────
 #  calculate_price_difference の境界値テスト
@@ -111,8 +142,9 @@ class TestCalculatePriceDifferenceExtra:
                 "price": 5000,
                 "total_fee": 500,
                 "amazon_quantity": 1,
-                "rakuten_cost_1": 1000,
-                "rakuten_point_1": 1000,  # point == cost → effective_total = 0
+                # cost=2000: Amazon5000円の40%→ratio フィルタ通過、point=2000でeffective=0
+                "rakuten_cost_1": 2000,
+                "rakuten_point_1": 2000,  # point == cost → effective_total = 0
                 "rakuten_quantity_1": 1,
             }
         }
